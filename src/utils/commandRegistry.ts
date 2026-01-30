@@ -103,12 +103,15 @@ const MEDIA_COMMANDS: Command[] = [
   { id: 'media-next', title: 'Next Track', description: 'Skip to next track', icon: '⏭️', action: () => invoke('system_media_control', { action: 'next' }), keywords: ['next', 'skip', 'forward'], category: 'system' },
   { id: 'media-prev', title: 'Previous Track', description: 'Go back to previous track', icon: '⏮️', action: () => invoke('system_media_control', { action: 'prev', repeat: 1 }), keywords: ['previous', 'back', 'prev'], category: 'system' },
   { id: 'media-vol-up', title: 'Volume Up', description: 'Increase system volume', icon: '🔊', action: (q) => {
-    const num = parseAnyNumber(q || '') || 2;
-    return invoke('system_media_control', { action: 'volume_up', repeat: num });
+    const rawNum = parseAnyNumber(q || '') || 4;
+    // Each Windows volume keypress is 2%. We divide by 2 to match user's expected percentage.
+    const repeats = Math.max(1, Math.round(rawNum / 2));
+    return invoke('system_media_control', { action: 'volume_up', repeat: repeats });
   }, keywords: ['volume up', 'louder', 'increase volume'], category: 'system' },
   { id: 'media-vol-down', title: 'Volume Down', description: 'Decrease system volume', icon: '🔉', action: (q) => {
-    const num = parseAnyNumber(q || '') || 2;
-    return invoke('system_media_control', { action: 'volume_down', repeat: num });
+    const rawNum = parseAnyNumber(q || '') || 4;
+    const repeats = Math.max(1, Math.round(rawNum / 2));
+    return invoke('system_media_control', { action: 'volume_down', repeat: repeats });
   }, keywords: ['volume down', 'quieter', 'lower volume'], category: 'system' },
   { id: 'media-mute', title: 'Mute', description: 'Toggle system mute', icon: '🔇', action: () => invoke('system_media_control', { action: 'volume_mute' }), keywords: ['mute', 'silent', 'unmute'], category: 'system' },
 ];
