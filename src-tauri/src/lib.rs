@@ -103,7 +103,8 @@ pub fn run() {
             greet,
             create_window,
             launcher::get_apps,
-            launcher::launch_app
+            launcher::launch_app,
+            services::system::system_media_control
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { FC, KeyboardEvent } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useSTT } from '../../hooks/useSTT';
@@ -6,6 +6,8 @@ import { useTTS } from '../../hooks/useTTS';
 import { useAppStore } from '../../stores/useAppStore';
 import { getCommands } from '../../utils/commandRegistry';
 import type { Command } from '../../utils/commandRegistry';
+import { useCommandFiltering } from '../../hooks/useCommandFiltering';
+import { getOrdinalIndex, cleanVoiceText, normalizeLaunchIntent } from '../../utils/voiceUtils';
 import VoiceIndicator from '../VoiceIndicator/VoiceIndicator';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import './CommandPalette.css';
@@ -31,53 +33,8 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
   }, [refreshApps]);
 
   const { speak, isSpeaking, isInitializing: ttsInitializing } = useTTS();
+  const filteredCommands = useCommandFiltering(query, windowMode);
 
-  // 1. Data Logic
-  const allStaticCommands = useMemo(() => getCommands(), []);
-  const installedApps = useAppStore(state => state.installedApps);
-  
-  const filteredCommands = useMemo(() => {
-    const lowerQuery = query.toLowerCase().trim();
-    
-    const matchedCommands = lowerQuery 
-      ? allStaticCommands.filter(c => 
-          c.title.toLowerCase().includes(lowerQuery) || 
-          c.description.toLowerCase().includes(lowerQuery) ||
-          c.keywords.some(k => k.includes(lowerQuery))
-        )
-      : (windowMode === 'expanded' ? allStaticCommands : []);
-
-    const matchedApps = lowerQuery 
-      ? installedApps
-          .filter(app => app.name.toLowerCase().includes(lowerQuery))
-          .map(app => ({
-            id: `app:${app.path}`,
-            title: app.name,
-            description: `Application • ${app.path.substring(0, 30)}...`,
-            icon: '🚀',
-            action: async () => {
-              const { invoke } = await import('@tauri-apps/api/core');
-              await invoke('launch_app', { path: app.path });
-            },
-            keywords: ['app', 'launch', app.name.toLowerCase()],
-            category: 'app' as const
-          }))
-      : [];
-
-    const combined = [...matchedCommands, ...matchedApps];
-    if (lowerQuery) {
-       combined.sort((a, b) => {
-         const aExact = a.title.toLowerCase() === lowerQuery;
-         const bExact = b.title.toLowerCase() === lowerQuery;
-         if (aExact && !bExact) return -1;
-         if (!aExact && bExact) return 1;
-         return 0;
-       });
-    }
-    return combined;
-  }, [query, allStaticCommands, windowMode, installedApps]);
-
-  // 2. Command Execution Logic
   const executeCommand = async (command: Command, customQuery?: string) => {
     if (!command) return;
     const finalQuery = customQuery || query;
@@ -89,66 +46,101 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
     if (result && typeof result === 'object' && result.keepOpen) {
       if (result.newQuery !== undefined) setQuery(result.newQuery);
       waitingForReplyRef.current = true;
-      console.log('[CommandPalette] Ambiguity detected. Waiting for TTS finish...');
+      console.log('[CommandPalette] Ambiguity detected. Waiting for Jarvis to finish speaking...');
       return;
     }
 
-    speak(`${command.title}`);
+    if (!(result && typeof result === 'object' && result.suppressOutput)) {
+      speak(`${command.title}`);
+    }
     setQuery('');
     setIsVisible(false);
   };
 
-  // 3. Voice Handling
   const handleVoiceResult = useCallback((text: string, isFinal: boolean) => {
-    setQuery(text);
-    if (!isFinal) return;
-
-    const lowerText = text.toLowerCase().trim().replace(/[.,!?;:]+$/, '');
+    const cleanedText = cleanVoiceText(text);
     
-    // Ordinal Detection
-    const ordinalMap: Record<string, number> = {
-      'first': 0, '1st': 0, 'one': 0, 'number one': 0,
-      'second': 1, '2nd': 1, 'two': 1, 'number two': 1,
-      'third': 2, '3rd': 2, 'three': 2, 'number three': 3,
-      'fourth': 3, '4th': 3, 'four': 3, 'number four': 4,
-      'fifth': 4, '5th': 4, 'five': 4, 'number five': 5
-    };
-
-    for (const [key, index] of Object.entries(ordinalMap)) {
-      if (lowerText === key || lowerText.includes(`the ${key}`)) {
-        if (filteredCommands[index]) {
-          executeCommand(filteredCommands[index]);
-          return;
+    if (isFinal) {
+      // 1. Handle "More Results" request
+      const moreKeywords = ['more', 'others', 'rest', 'what else', 'tell me more', 'show more'];
+      if (waitingForReplyRef.current && moreKeywords.some(k => cleanedText.includes(k))) {
+        const rest = filteredCommands.slice(3, 10).map(c => c.title);
+        if (rest.length > 0) {
+          speak(`The other matches are: ${rest.join(', ')}. Which one?`);
+        } else {
+          speak("Those are all the matches I found.");
         }
+        return;
+      }
+
+      // 2. Handle Ordinal selection
+      const index = getOrdinalIndex(cleanedText);
+      if (index !== null && filteredCommands[index]) {
+        executeCommand(filteredCommands[index]);
+        return;
       }
     }
 
-    // Wake Words
-    if (['jarvis', 'meera', 'computer'].some(w => lowerText === w)) {
+    // 2. Interim ordinal filtering
+    const possiblyOrdinal = /^(number|the|first|one|two|three|second|third|1|2|3)/.test(cleanedText);
+    if (!isFinal && possiblyOrdinal && waitingForReplyRef.current) return;
+
+    setQuery(cleanedText);
+    if (!isFinal) return;
+
+    // 4. Special Keywords
+    if (['jarvis', 'meera', 'computer'].some(w => cleanedText === w)) {
       speak("Yes?");
       setQuery('');
       return;
     }
     
-    // Auto-Launcher
-    if (lowerText.startsWith('launch ') || lowerText.startsWith('open ')) {
-       const openCmd = getCommands().find(c => c.id === 'open_app');
-       if (openCmd) {
-         executeCommand(openCmd, text.replace(/[.,!?;:]+$/, ''));
-       }
+    // 5. Intelligent Routing & Auto-Execution
+    const isVolumeCmd = cleanedText.includes('volume') || cleanedText.includes('louder') || cleanedText.includes('quieter') || cleanedText.includes('mute');
+    const isMediaCmd = ['play', 'pause', 'resume', 'next', 'previous', 'skip'].some(k => cleanedText.includes(k));
+
+    if (isVolumeCmd || isMediaCmd) {
+      const bestMatch = filteredCommands.find(c => 
+        c.category === 'system' && (
+          cleanedText.includes(c.title.toLowerCase()) || 
+          c.keywords.some(k => cleanedText.includes(k.toLowerCase()))
+        )
+      );
+      
+      if (bestMatch) {
+        executeCommand(bestMatch, cleanedText);
+        return;
+      }
     }
-  }, [filteredCommands, speak]); // dependency on executeCommand is implicit or should be added
+
+    if (cleanedText.startsWith('launch ') || cleanedText.startsWith('open ') || cleanedText.startsWith('start ')) {
+       const intent = normalizeLaunchIntent(cleanedText);
+       const staticCmd = getCommands().find(c => 
+         c.id !== 'open_app' && (c.title.toLowerCase() === intent || c.keywords.includes(intent))
+       );
+
+       if (staticCmd) {
+         executeCommand(staticCmd);
+       } else {
+         const openCmd = getCommands().find(c => c.id === 'open_app');
+         if (openCmd) executeCommand(openCmd, cleanedText);
+       }
+       return;
+    }
+  }, [filteredCommands, speak]);
 
   const { isListening, startListening, stopListening } = useSTT(handleVoiceResult);
 
-  // 4. Effects & Synchronization
-  
-  // Smart Restart for Ambiguity
+  // Smart Restart for Ambiguity - Wait for TTS to finish
   useEffect(() => {
     if (waitingForReplyRef.current && !isSpeaking && isVisible) {
-      waitingForReplyRef.current = false;
-      console.log('[CommandPalette] Restarting STT for reply window.');
-      startListening();
+      const timer = setTimeout(() => {
+        if (!isSpeaking && isVisible) {
+           console.log('[CommandPalette] Restarting STT for reply window.');
+           startListening();
+        }
+      }, 300);
+      return () => clearTimeout(timer);
     }
   }, [isSpeaking, isVisible, startListening]);
 
@@ -196,25 +188,15 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
   useEffect(() => {
     const win = getCurrentWindow();
     if (isVisible) {
-      win.show().then(() => {
-        win.setFocus();
-        setTimeout(() => inputRef.current?.focus(), 100);
-      }).catch(console.error);
+      win.show().then(() => win.setFocus()).catch(console.error);
+      setTimeout(() => inputRef.current?.focus(), 150);
     } else {
       win.hide().catch(console.error);
       if (isListening) stopListening();
       setQuery('');
+      waitingForReplyRef.current = false;
     }
   }, [isVisible]);
-
-  useEffect(() => {
-    if (!isVisible) return;
-    const win = getCurrentWindow();
-    const unlistenBlur = win.onFocusChanged((event) => {
-      if (!event.payload && query.length === 0) setIsVisible(false);
-    });
-    return () => { unlistenBlur.then(f => f()); };
-  }, [isVisible, setIsVisible, query.length]);
 
   const isPillMode = query.trim().length === 0 && windowMode === 'compact';
 
@@ -241,7 +223,7 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
         </div>
 
         {!isPillMode && (
-          <>
+          <div className="results-wrapper">
             <div className="results-section">
                {filteredCommands.length > 0 ? (
                  filteredCommands.map((cmd, index) => (
@@ -268,7 +250,7 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
               <span className={`status-dot ${ttsInitializing ? 'loading' : 'ready'}`} />
               {ttsInitializing ? 'Loading Voice Engine...' : 'Jarvis Online'}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

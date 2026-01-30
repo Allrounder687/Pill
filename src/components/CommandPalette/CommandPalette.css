@@ -42,9 +42,21 @@
 }
 
 /* PILL MODE STYLING */
+.palette-overlay.pill-layout {
+  padding-top: 5vh; /* Move it higher up for visibility */
+}
+
 .palette-overlay.pill-layout .palette-container {
-  max-width: 450px;
-  border-radius: 40px;
+  max-width: 400px;
+  border-radius: 50px;
+  background: rgba(15, 15, 15, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(124, 77, 255, 0.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(124, 77, 255, 0.1);
+}
+
+.palette-overlay.pill-layout .search-section {
+  padding: 8px 16px;
 }
 
 .search-section {
@@ -82,9 +94,22 @@
 }
 
 .results-section {
-  max-height: 350px;
+  max-height: 450px; /* Increased to fit more settings */
   overflow-y: auto;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.results-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.results-section::-webkit-scrollbar-thumb {
+  background: rgba(124, 77, 255, 0.3);
+  border-radius: 10px;
+}
+
+.results-section::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .result-item {

@@ -9,7 +9,6 @@ import { useWakeWord } from './hooks/useWakeWord';
 import { useTTS } from './hooks/useTTS';
 import Toaster from './components/Toaster/Toaster';
 import CommandPalette from './components/CommandPalette/CommandPalette';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import './index.css';
 
 const Settings = lazy(() => import('./pages/Settings/Settings'));
@@ -197,9 +196,9 @@ function App() {
     };
   }, [isSettings, isSTTActive, startWakeWordListening, stopWakeWordListening]);
 
+  // Sync palette visibility with window visibility
   useEffect(() => {
     if (isSettings) return;
-
     initTTS().catch(err => console.error('[App] TTS init failed:', err));
     
     // Remaining sync listeners
@@ -220,24 +219,7 @@ function App() {
       unlistenGlobal.then(f => (typeof f === 'function' ? f() : undefined));
       unlistenSpeak.then(f => (typeof f === 'function' ? f() : undefined));
     };
-  }, [isSettings, initTTS, setPaletteVisible, speak]);
-
-  // Sync palette visibility with window visibility
-  useEffect(() => {
-    if (isSettings) return;
-    
-    const win = getCurrentWindow();
-    // Use focus as a proxy for visibility in this context
-    const unlisten = win.onFocusChanged((event) => {
-      if (!event.payload) {
-        setPaletteVisible(false);
-      }
-    });
-    
-    return () => {
-      unlisten.then((f: () => void) => f());
-    };
-  }, [isSettings, setPaletteVisible]);
+  }, [isSettings, setPaletteVisible, speak]);
 
   if (isSettings) {
     return (

@@ -1,27 +1,27 @@
 import { open } from '@tauri-apps/plugin-shell';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../stores/useAppStore';
+import { parseAnyNumber } from './voiceUtils';
 
 export interface Command {
   id: string;
   title: string;
   description: string;
   icon: string;
-  action: (query?: string) => Promise<{ keepOpen?: boolean; newQuery?: string } | void> | { keepOpen?: boolean; newQuery?: string } | void;
+  action: (query?: string) => Promise<{ keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void> | { keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void;
   keywords: string[];
-  category?: 'voice' | 'system' | 'app' | 'web';
+  category?: 'voice' | 'system' | 'app' | 'web' | 'win-settings';
 }
 
 // Helper function to play audio using Web Audio API
 function playAudio(audioData: Float32Array, samplingRate: number) {
-  // Close any existing audio context
   const existingContext = (window as any).currentAudioContext;
   if (existingContext) {
     existingContext.close();
   }
   
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  (window as any).currentAudioContext = audioContext; // Store globally for interrupt
+  (window as any).currentAudioContext = audioContext; 
   
   const audioBuffer = audioContext.createBuffer(1, audioData.length, samplingRate);
   audioBuffer.getChannelData(0).set(audioData);
@@ -40,7 +40,6 @@ function playAudio(audioData: Float32Array, samplingRate: number) {
   source.start();
 }
 
-// Voice samples for testing
 const VOICE_SAMPLES = {
   'af_heart': 'Hello! I am Heart, your premium voice assistant.',
   'af_bella': 'Hi there! Bella here, ready to help you today.',
@@ -50,6 +49,69 @@ const VOICE_SAMPLES = {
   'am_adam': 'Hello, I am Adam. How may I assist you?',
   'bm_george': 'Good afternoon. George here, ready to help.',
 };
+
+// Helper for standard system launches with voice feedback
+async function launchWithSpeech(title: string, path: string) {
+  const { useResourceStore } = await import('../stores/useResourceStore');
+  useResourceStore.getState().speak(`Opening ${title}`);
+  try {
+    await invoke('launch_app', { path });
+  } catch (err) { console.error(err); }
+  return { suppressOutput: true };
+}
+
+// Windows Direct Settings (ms-settings)
+const WINDOWS_SETTINGS: Command[] = [
+  { id: 'win-display', title: 'Display Settings', description: 'Resolution, brightness, and multiple displays', icon: '🖥️', keywords: ['display', 'monitor', 'brightness', 'resolution', 'screen'], action: () => launchWithSpeech('Display Settings', 'ms-settings:display') },
+  { id: 'win-sound', title: 'Sound Settings', description: 'Volume, input/output devices', icon: '🔊', keywords: ['sound', 'volume', 'speaker', 'microphone', 'audio'], action: () => launchWithSpeech('Sound Settings', 'ms-settings:sound') },
+  { id: 'win-wifi', title: 'Wi-Fi Settings', description: 'Manage wireless networks', icon: '📶', keywords: ['wifi', 'internet', 'wireless', 'network', 'connection'], action: () => launchWithSpeech('Wi-Fi Settings', 'ms-settings:network-wifi') },
+  { id: 'win-bluetooth', title: 'Bluetooth Settings', description: 'Manage connected devices', icon: '🎧', keywords: ['bluetooth', 'devices', 'pairing', 'headset', 'mouse'], action: () => launchWithSpeech('Bluetooth Settings', 'ms-settings:bluetooth') },
+  { id: 'win-themes', title: 'Windows Themes', description: 'Change colors, wallpaper, and look', icon: '🎨', keywords: ['theme', 'wallpaper', 'background', 'color', 'dark mode', 'personalization'], action: () => launchWithSpeech('Windows Themes', 'ms-settings:themes') },
+  { id: 'win-apps', title: 'Apps & Features', description: 'Uninstall or manage applications', icon: '📦', keywords: ['apps', 'uninstall', 'programs', 'features', 'manage apps'], action: () => launchWithSpeech('Apps and Features', 'ms-settings:appsfeatures') },
+  { id: 'win-update', title: 'Windows Update', description: 'Check for system updates', icon: '🔄', keywords: ['update', 'windows update', 'check for updates', 'patch'], action: () => launchWithSpeech('Windows Update', 'ms-settings:windowsupdate') },
+  { id: 'win-security', title: 'Windows Security', description: 'Antivirus and firewall protection', icon: '🛡️', keywords: ['security', 'antivirus', 'firewall', 'protection', 'defender'], action: () => launchWithSpeech('Windows Security', 'ms-settings:windowsdefender') },
+  { id: 'win-storage', title: 'Storage Settings', description: 'Manage disk space and cleanup', icon: '💾', keywords: ['storage', 'disk', 'space', 'cleanup', 'hard drive'], action: () => launchWithSpeech('Storage Settings', 'ms-settings:storagesummary') },
+  { id: 'win-power', title: 'Power & Sleep', description: 'Screen timeout and power plans', icon: '🔋', keywords: ['power', 'sleep', 'battery', 'timeout', 'energy'], action: () => launchWithSpeech('Power and Sleep Settings', 'ms-settings:powersleep') },
+  { id: 'win-fonts', title: 'Font Settings', description: 'View and install system fonts', icon: '🔤', keywords: ['fonts', 'typography', 'text'], action: () => launchWithSpeech('Font Settings', 'ms-settings:fonts') },
+  { id: 'win-notifications', title: 'Notifications', description: 'Focus assist and app alerts', icon: '🔔', keywords: ['notifications', 'alerts', 'focus assist', 'do not disturb'], action: () => launchWithSpeech('Notifications', 'ms-settings:notifications') },
+  { id: 'win-backup', title: 'Windows Backup', description: 'Sync settings and file backup', icon: '☁️', keywords: ['backup', 'sync', 'onedrive', 'restore'], action: () => launchWithSpeech('Windows Backup', 'ms-settings:backup') },
+];
+
+// Windows Legacy / Deep Tools (.cpl and .msc)
+const DEEP_WINDOWS_TOOLS: Command[] = [
+  { id: 'win-registry', title: 'Registry Editor', description: 'Advanced system configuration (regedit)', icon: '🔑', keywords: ['registry', 'regedit', 'database', 'advanced'], action: () => launchWithSpeech('Registry Editor', 'regedit.exe') },
+  { id: 'win-device-manager', title: 'Device Manager', description: 'Maintain hardware drivers', icon: '🛠️', keywords: ['device manager', 'drivers', 'hardware', 'peripherals'], action: () => launchWithSpeech('Device Manager', 'devmgmt.msc') },
+  { id: 'win-control-panel', title: 'Control Panel', description: 'Legacy system settings', icon: '🎛️', keywords: ['control panel', 'legacy', 'older settings'], action: () => launchWithSpeech('Control Panel', 'control.exe') },
+  { id: 'win-taskmgr', title: 'Task Manager', description: 'Monitor processes and performance', icon: '📈', keywords: ['task manager', 'processes', 'performance', 'cpu', 'kill app'], action: () => launchWithSpeech('Task Manager', 'taskmgr.exe') },
+  { id: 'win-firewall-adv', title: 'Advanced Firewall', description: 'Deep network security rules', icon: '🔥', keywords: ['firewall', 'security', 'advanced firewall', 'port', 'rules'], action: () => launchWithSpeech('Advanced Firewall', 'wf.msc') },
+  { id: 'win-services', title: 'Services', description: 'Manage background system services', icon: '⚙️', keywords: ['services', 'background', 'daemon', 'system services'], action: () => launchWithSpeech('System Services', 'services.msc') },
+  { id: 'win-disk-mgmt', title: 'Disk Management', description: 'Format and partition drives', icon: '💿', keywords: ['disk management', 'partition', 'format', 'drive'], action: () => launchWithSpeech('Disk Management', 'diskmgmt.msc') },
+  { id: 'win-dxdiag', title: 'DirectX Diagnostics', description: 'Check graphics and sound info', icon: '🎮', keywords: ['dxdiag', 'directx', 'graphics info', 'video card'], action: () => launchWithSpeech('DirectX Diagnostics', 'dxdiag.exe') },
+];
+
+const POWER_COMMANDS: Command[] = [
+  { id: 'sys-shutdown', title: 'Shutdown', description: 'Power off the system', icon: '🛑', action: () => launchWithSpeech('System', 'shutdown /s /t 0'), keywords: ['shutdown', 'power off', 'turn off'], category: 'system' },
+  { id: 'sys-restart', title: 'Restart', description: 'Reboot the system', icon: '🔄', action: () => launchWithSpeech('System', 'shutdown /r /t 0'), keywords: ['restart', 'reboot'], category: 'system' },
+  { id: 'sys-lock', title: 'Lock Windows', description: 'Lock the workstation', icon: '🔒', action: () => launchWithSpeech('Computer', 'rundll32.exe user32.dll,LockWorkStation'), keywords: ['lock', 'screen lock'], category: 'system' },
+  { id: 'sys-hibernate', title: 'Hibernate', description: 'Suspend to disk', icon: '🌙', action: () => launchWithSpeech('System', 'shutdown /h'), keywords: ['hibernate'], category: 'system' },
+  { id: 'sys-sleep', title: 'Sleep', description: 'Put the computer to sleep', icon: '🛌', action: () => launchWithSpeech('System', 'rundll32.exe powrprof.dll,SetSuspendState 0,1,0'), keywords: ['sleep', 'suspend'], category: 'system' },
+  { id: 'sys-signout', title: 'Sign Out', description: 'Log off current user', icon: '👤', action: () => launchWithSpeech('User', 'shutdown /l'), keywords: ['signout', 'logoff', 'logout'], category: 'system' },
+];
+
+const MEDIA_COMMANDS: Command[] = [
+  { id: 'media-play', title: 'Play/Pause', description: 'Toggle media playback', icon: '⏯️', action: () => invoke('system_media_control', { action: 'play_pause' }), keywords: ['play', 'pause', 'resume', 'stop'], category: 'system' },
+  { id: 'media-next', title: 'Next Track', description: 'Skip to next track', icon: '⏭️', action: () => invoke('system_media_control', { action: 'next' }), keywords: ['next', 'skip', 'forward'], category: 'system' },
+  { id: 'media-prev', title: 'Previous Track', description: 'Go back to previous track', icon: '⏮️', action: () => invoke('system_media_control', { action: 'prev', repeat: 1 }), keywords: ['previous', 'back', 'prev'], category: 'system' },
+  { id: 'media-vol-up', title: 'Volume Up', description: 'Increase system volume', icon: '🔊', action: (q) => {
+    const num = parseAnyNumber(q || '') || 2;
+    return invoke('system_media_control', { action: 'volume_up', repeat: num });
+  }, keywords: ['volume up', 'louder', 'increase volume'], category: 'system' },
+  { id: 'media-vol-down', title: 'Volume Down', description: 'Decrease system volume', icon: '🔉', action: (q) => {
+    const num = parseAnyNumber(q || '') || 2;
+    return invoke('system_media_control', { action: 'volume_down', repeat: num });
+  }, keywords: ['volume down', 'quieter', 'lower volume'], category: 'system' },
+  { id: 'media-mute', title: 'Mute', description: 'Toggle system mute', icon: '🔇', action: () => invoke('system_media_control', { action: 'volume_mute' }), keywords: ['mute', 'silent', 'unmute'], category: 'system' },
+];
 
 export const getCommands = (): Command[] => [
   // Voice Commands
@@ -70,38 +132,6 @@ export const getCommands = (): Command[] => [
     category: 'voice'
   },
   {
-    id: 'test_voice_bella',
-    title: 'Test Voice: Bella (Warm)',
-    description: 'Try the warm af_bella voice',
-    icon: '🔥',
-    action: async () => {
-      const { useResourceStore } = await import('../stores/useResourceStore');
-      const tts = useResourceStore.getState().tts;
-      if (tts) {
-        const { audio, sampling_rate } = await tts.speak(VOICE_SAMPLES['af_bella'], 'af_bella');
-        playAudio(audio, sampling_rate);
-      }
-    },
-    keywords: ['voice', 'test', 'bella', 'warm', 'tts', 'speak'],
-    category: 'voice'
-  },
-  {
-    id: 'test_voice_emma',
-    title: 'Test Voice: Emma (British)',
-    description: 'Try the British bf_emma voice',
-    icon: '🇬🇧',
-    action: async () => {
-      const { useResourceStore } = await import('../stores/useResourceStore');
-      const tts = useResourceStore.getState().tts;
-      if (tts) {
-        const { audio, sampling_rate } = await tts.speak(VOICE_SAMPLES['bf_emma'], 'bf_emma');
-        playAudio(audio, sampling_rate);
-      }
-    },
-    keywords: ['voice', 'test', 'emma', 'british', 'uk', 'tts', 'speak'],
-    category: 'voice'
-  },
-  {
     id: 'speak_custom',
     title: 'Speak Text',
     description: 'Have Jarvis speak your custom text',
@@ -116,21 +146,6 @@ export const getCommands = (): Command[] => [
       }
     },
     keywords: ['speak', 'say', 'voice', 'tts', 'read', 'talk'],
-    category: 'voice'
-  },
-  {
-    id: 'list_voices',
-    title: 'Show Available Voices',
-    description: 'Display all 54 Kokoro voices',
-    icon: '🎤',
-    action: () => {
-      console.log('Available voices:', Object.keys(VOICE_SAMPLES));
-      // This could open a modal or settings panel
-      import('./windowManager').then(({ windowManager }) => {
-        windowManager.openSettings();
-      });
-    },
-    keywords: ['voices', 'list', 'available', 'tts', 'kokoro'],
     category: 'voice'
   },
   
@@ -154,128 +169,80 @@ export const getCommands = (): Command[] => [
     description: 'Launch an installed app by name',
     icon: '🚀',
     action: async (query) => {
-      // Clean query: remove command words and trailing punctuation
       const cleanQuery = query?.replace(/[.,!?;:]/g, '').trim() || '';
       const appName = cleanQuery.replace(/launch|open|start|run/i, '').trim().toLowerCase();
       
-      console.log(`[Launcher] Searching for: "${appName}" (Cleaned from: "${query}")`);
-      
-      if (!appName) {
-        console.warn('[Launcher] No app name provided');
-        return;
-      }
-      
+      if (!appName) return;
       const apps = useAppStore.getState().installedApps;
       
-      // Find all matches
       const matches = apps.filter(a => 
         a.name.toLowerCase() === appName || 
         a.name.toLowerCase().startsWith(appName) || 
         a.name.toLowerCase().includes(appName)
       );
       
-      // If we have multiple matches, check for a single perfect match
-      let targetApp = matches.find(a => a.name.toLowerCase() === appName);
+      let targetApp = matches.find(a => a.name.toLowerCase() === appName) || (matches.length === 1 ? matches[0] : null);
       
-      // If no perfect match but we have multiple candidates, be smart
-      if (!targetApp && matches.length > 1) {
-        console.log(`[Launcher] 🚩 Ambiguous match: found ${matches.length} apps for "${appName}"`);
-        
+      if (targetApp) {
+        console.log(`[Launcher] Match found: ${targetApp.name} (${targetApp.path})`);
         const { useResourceStore } = await import('../stores/useResourceStore');
-        const count = matches.length;
-        useResourceStore.getState().speak(`I found ${count} applications matching ${appName}. Which one did you mean?`);
-        
-        // Return instruction to keep open and show results
+        useResourceStore.getState().speak(`Opening ${targetApp.name}`);
+        try {
+          await invoke('launch_app', { path: targetApp.path });
+        } catch (err) { console.error(err); }
+        return { suppressOutput: true };
+      }
+      
+      if (matches.length > 1) {
+        const top3 = matches.slice(0, 3).map(a => a.name).join(', ');
+        const message = `I found ${matches.length} apps. The top results are ${top3}. Which one did you mean?`;
+        console.log(`[Launcher] Ambiguity: ${matches.length} matches found.`);
+        const { useResourceStore } = await import('../stores/useResourceStore');
+        useResourceStore.getState().speak(message);
         return { keepOpen: true, newQuery: appName };
       }
 
-      // If exactly one match, use it
-      if (!targetApp && matches.length === 1) {
-        targetApp = matches[0];
-      }
-
-      if (targetApp) {
-        console.log(`[Launcher] ✅ Found match: "${targetApp.name}"`);
-        try {
-          await invoke('launch_app', { path: targetApp.path });
-          console.log(`[Launcher] 🚀 Success: ${targetApp.name} launched.`);
-        } catch (err) {
-          console.error(`[Launcher] ❌ Backend error:`, err);
-        }
-      } else {
-        console.warn(`[Launcher] ❓ No local app for "${appName}". Falling back to Web Search.`);
-        
-        // Notify user of fallback
-        const { useResourceStore } = await import('../stores/useResourceStore');
-        useResourceStore.getState().speak(`Searching the web for ${appName}`, 'af_heart');
-        
-        // Execute web search
-        open(`https://www.google.com/search?q=${encodeURIComponent(appName)}`);
-      }
+      const { useResourceStore } = await import('../stores/useResourceStore');
+      useResourceStore.getState().speak(`Searching the web for ${appName}`, 'af_heart');
+      open(`https://www.google.com/search?q=${encodeURIComponent(appName)}`).catch(console.error);
     },
     keywords: ['open', 'launch', 'start', 'run'],
     category: 'app'
   },
   
-  // Interrupt Commands
+  // Windows Settings & Deep Tools
+  ...WINDOWS_SETTINGS,
+  ...DEEP_WINDOWS_TOOLS,
+  ...POWER_COMMANDS,
+  ...MEDIA_COMMANDS,
+
   {
     id: 'stop_talking',
     title: 'Stop Talking',
     description: 'Stop the voice assistant from speaking',
     icon: '🤫',
     action: () => {
-      // Stop all audio playback
       const audioContext = (window as any).currentAudioContext;
       if (audioContext) {
         audioContext.close();
-        (window as any).currentAudioContext = null; // Clear reference
+        (window as any).currentAudioContext = null;
       }
-      console.log('🤫 [Command] Stopped TTS playback');
     },
     keywords: ['stop', 'shush', 'shut up', 'be quiet', 'stop talking', 'enough', 'silence'],
     category: 'voice',
   },
-
-  // System Commands
-  {
-    id: 'set_timer',
-    title: 'Set Timer',
-    description: 'Start a countdown timer',
-    icon: '⏲️',
-    action: () => console.log('Setting timer...'),
-    keywords: ['timer', 'countdown', 'time', 'alarm'],
-    category: 'system'
-  },
-  {
-    id: 'toggle_dark_mode',
-    title: 'Toggle Dark Mode',
-    description: 'Switch between light and dark themes',
-    icon: '🌙',
-    action: () => {
-      document.documentElement.classList.toggle('dark-theme');
-    },
-    keywords: ['theme', 'dark', 'light', 'appearance'],
-    category: 'system'
-  },
-  {
-    id: 'system_info',
-    title: 'System Info',
-    description: 'Show system resource usage',
-    icon: '📊',
-    action: () => console.log('Showing system info...'),
-    keywords: ['system', 'info', 'cpu', 'memory', 'usage'],
-    category: 'system'
-  },
   {
     id: 'open_settings',
-    title: 'Settings',
+    title: 'App Settings',
     description: 'Configure Jarvis and extensions',
     icon: '⚙️',
-    action: () => {
-      console.log('Settings command triggered');
+    action: async () => {
+      const { useResourceStore } = await import('../stores/useResourceStore');
+      useResourceStore.getState().speak(`Opening App Settings`);
       import('./windowManager').then(({ windowManager }) => {
         windowManager.openSettings();
       });
+      return { suppressOutput: true };
     },
     keywords: ['settings', 'config', 'setup', 'options'],
     category: 'system'
