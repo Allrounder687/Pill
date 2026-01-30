@@ -1,0 +1,97 @@
+.voice-indicator {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.center-dot {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-tertiary);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-primary);
+  z-index: 2;
+  border: 1px solid var(--glass-border);
+  transition: var(--transition-normal);
+  opacity: 0.7;
+}
+
+.voice-indicator.listening .center-dot {
+  background: var(--accent-primary);
+  box-shadow: 0 0 15px var(--accent-primary);
+}
+
+.voice-indicator.speaking .center-dot {
+  background: var(--accent-secondary);
+  box-shadow: 0 0 15px var(--accent-secondary);
+}
+
+.voice-indicator.wake-word .center-dot {
+  background: #00e676;
+  box-shadow: 0 0 20px #00e676;
+  animation: wake-word-pulse 0.5s ease-out;
+}
+
+@keyframes wake-word-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.wave {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  opacity: 0;
+  z-index: 1;
+}
+
+.voice-indicator.listening .wave {
+  animation: wave-pulse 2s infinite;
+}
+
+.voice-indicator.speaking .wave {
+  background: var(--accent-secondary);
+  animation: wave-pulse 1.5s infinite;
+}
+
+.voice-indicator.wake-word .wave {
+  background: #00e676;
+  animation: wave-pulse 1s ease-out;
+}
+
+.wave:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.wave:nth-child(3) {
+  animation-delay: 1s;
+}
+
+@keyframes wave-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.center-dot svg {
+  width: 18px;
+  height: 18px;
+}
