@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import { getCommands } from '../utils/commandRegistry';
+import type { Command } from '../utils/commandRegistry';
 
-export const useCommandFiltering = (query: string, windowMode: string) => {
-  const allStaticCommands = useMemo(() => getCommands(), []);
+export const useCommandFiltering = (query: string, windowMode: string): Command[] => {
   const installedApps = useAppStore(state => state.installedApps);
+  const allStaticCommands = useMemo(() => getCommands(), [installedApps]);
 
   const filteredCommands = useMemo(() => {
     const rawLower = query.toLowerCase().trim();
@@ -13,7 +14,7 @@ export const useCommandFiltering = (query: string, windowMode: string) => {
     
     if (!lowerQuery && windowMode === 'compact') return [];
     
-    const matchedCommands = lowerQuery 
+    const matched = lowerQuery 
       ? allStaticCommands.filter(c => {
           const title = c.title.toLowerCase();
           const desc = c.description.toLowerCase();
@@ -27,30 +28,12 @@ export const useCommandFiltering = (query: string, windowMode: string) => {
         })
       : allStaticCommands;
 
-    const matchedApps = lowerQuery 
-      ? installedApps
-          .filter(app => app.name.toLowerCase().includes(lowerQuery))
-          .map(app => ({
-            id: `app:${app.path}`,
-            title: app.name,
-            description: `Application • ${app.path.substring(0, 30)}...`,
-            icon: '🚀',
-            action: async () => {
-              const { invoke } = await import('@tauri-apps/api/core');
-              await invoke('launch_app', { path: app.path });
-            },
-            keywords: ['app', 'launch', app.name.toLowerCase()],
-            category: 'app' as const
-          }))
-      : [];
-
-    const combined = [...matchedCommands, ...matchedApps];
     if (lowerQuery) {
-       combined.sort((a, b) => {
+       return [...matched].sort((a, b) => {
          const aTitle = a.title.toLowerCase();
          const bTitle = b.title.toLowerCase();
          
-         const getScore = (cmd: any, t: string) => {
+         const getScore = (cmd: Command, t: string) => {
            if (t === lowerQuery) return 100;
            if (lowerQuery.startsWith(t)) return 80;
            if (t.startsWith(lowerQuery)) return 70;
@@ -67,8 +50,8 @@ export const useCommandFiltering = (query: string, windowMode: string) => {
          return aTitle.localeCompare(bTitle);
        });
     }
-    return combined;
-  }, [query, allStaticCommands, windowMode, installedApps]);
+    return matched;
+  }, [query, allStaticCommands, windowMode]);
 
   return filteredCommands;
 };

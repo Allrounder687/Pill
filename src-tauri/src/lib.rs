@@ -104,7 +104,12 @@ pub fn run() {
             create_window,
             launcher::get_apps,
             launcher::launch_app,
-            services::system::system_media_control
+            services::system::system_media_control,
+            services::system::get_youtube_video_id,
+            services::system::get_app_icon,
+            services::system::list_processes,
+            services::system::kill_process_by_name,
+            services::system::kill_process_by_pid
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

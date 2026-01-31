@@ -1,0 +1,71 @@
+.api-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.api-row-icon {
+  font-size: 16px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.api-action-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 420px;
+}
+
+.rc-input-api {
+  flex: 1;
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+}
+
+.rc-input-api:focus {
+  border-color: var(--rc-accent);
+}
+
+.api-status-pill {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  min-width: 75px;
+  text-align: center;
+}
+
+.status-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-missing {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.status-optional {
+  background: rgba(255, 255, 255, 0.05);
+  color: #888;
+}
+
+.settings-footer-note {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--rc-text-secondary);
+}

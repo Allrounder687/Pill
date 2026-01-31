@@ -1,5 +1,6 @@
 import { open } from '@tauri-apps/plugin-shell';
 import { invoke } from '@tauri-apps/api/core';
+import { useConfigStore } from '../stores/useConfigStore';
 import { useAppStore } from '../stores/useAppStore';
 import { parseAnyNumber } from './voiceUtils';
 
@@ -8,6 +9,7 @@ export interface Command {
   title: string;
   description: string;
   icon: string;
+  iconUrl?: string;
   action: (query?: string) => Promise<{ keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void> | { keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void;
   keywords: string[];
   category?: 'voice' | 'system' | 'app' | 'web' | 'win-settings';
@@ -116,6 +118,73 @@ const MEDIA_COMMANDS: Command[] = [
   { id: 'media-mute', title: 'Mute', description: 'Toggle system mute', icon: '🔇', action: () => invoke('system_media_control', { action: 'volume_mute' }), keywords: ['mute', 'silent', 'unmute'], category: 'system' },
 ];
 
+const WEB_COMMANDS: Command[] = [
+  { 
+    id: 'web-search', 
+    title: 'Web Search', 
+    description: 'Search the web using Google', 
+    icon: '🔍', 
+    iconUrl: 'https://www.google.com/s2/favicons?domain=google.com&sz=64',
+    action: async (q) => {
+      const query = q?.replace(/^(search for|search|google)\s+/i, '').trim();
+      if (query) {
+        const { open } = await import('@tauri-apps/plugin-shell');
+        await open(`https://www.google.com/search?q=${encodeURIComponent(query)}`);
+      }
+    }, 
+    keywords: ['search', 'google', 'find'], 
+    category: 'web' 
+  },
+  { 
+    id: 'youtube-search', 
+    title: 'YouTube Search', 
+    description: 'Search for videos on YouTube', 
+    icon: '📺', 
+    iconUrl: 'https://www.google.com/s2/favicons?domain=youtube.com&sz=64',
+    action: async (q) => {
+      const query = q?.replace(/^(youtube search|search youtube for|youtube)\s+/i, '').trim();
+      if (query) {
+        const { open } = await import('@tauri-apps/plugin-shell');
+        await open(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
+      }
+    }, 
+    keywords: ['youtube', 'video', 'watch'], 
+    category: 'web' 
+  },
+  { 
+    id: 'media-play-direct', 
+    title: 'Play Video', 
+    description: 'Directly play the top result for a query', 
+    icon: '🎬', 
+    iconUrl: 'https://www.google.com/s2/favicons?domain=youtube.com&sz=64',
+    action: async (q) => {
+      const query = q?.replace(/^(play|play video|watch|listen to)\s+/i, '').trim();
+      if (query) {
+        const { open } = await import('@tauri-apps/plugin-shell');
+        const { invoke } = await import('@tauri-apps/api/core');
+
+        try {
+          // Attempt pinpoint accuracy via API
+          const { youtubeApiKey } = useConfigStore.getState();
+          const videoId = await invoke<string>('get_youtube_video_id', { 
+            query, 
+            apiKey: youtubeApiKey || undefined 
+          });
+          await open(`https://www.youtube.com/watch?v=${videoId}`);
+          console.log(`[YouTube API] Accuracy achieved: Playing video ${videoId}`);
+        } catch (err) {
+          // Fallback to URL trick if API fails (e.g. no key)
+          console.warn('[YouTube API] Fallback triggered:', err);
+          const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=EgIQAQ%3D%3D`;
+          await open(url);
+        }
+      }
+    }, 
+    keywords: ['play', 'watch', 'listen'], 
+    category: 'web' 
+  },
+];
+
 export const getCommands = (): Command[] => [
   // Voice Commands
   {
@@ -213,11 +282,62 @@ export const getCommands = (): Command[] => [
     category: 'app'
   },
   
+  {
+    id: 'kill_app',
+    title: 'Kill Application',
+    description: 'Terminate a running process by name',
+    icon: '💀',
+    action: async (query) => {
+      const cleanQuery = query?.replace(/[.,!?;:]/g, '').trim() || '';
+      const targetName = cleanQuery.replace(/kill|terminate|stop|end|close/i, '').trim().toLowerCase();
+      
+      if (!targetName) return;
+      
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { useResourceStore } = await import('../stores/useResourceStore');
+      
+      try {
+        await invoke('kill_process_by_name', { name: targetName });
+        useResourceStore.getState().speak(`Terminated ${targetName}`);
+      } catch (err) {
+        console.error(err);
+        useResourceStore.getState().speak(`Could not find a running app named ${targetName}`);
+        return { keepOpen: true, newQuery: targetName };
+      }
+      return { suppressOutput: true };
+    },
+    keywords: ['kill', 'terminate', 'stop', 'end', 'close process'],
+    category: 'system'
+  },
+  {
+    id: 'list_processes',
+    title: 'Show Processes',
+    description: 'List top running processes and their resource usage',
+    icon: '📊',
+    action: async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { useResourceStore } = await import('../stores/useResourceStore');
+      
+      try {
+        const processes = await invoke<any[]>('list_processes');
+        const top3 = processes.slice(0, 3).map(p => p.name).join(', ');
+        useResourceStore.getState().speak(`The top processes are ${top3}. Which one would you like to terminate?`);
+        return { keepOpen: true, newQuery: 'kill ' };
+      } catch (err) {
+        console.error(err);
+        useResourceStore.getState().speak(`Failed to retrieve process list.`);
+      }
+    },
+    keywords: ['processes', 'status', 'usage', 'cpu', 'memory', 'running apps'],
+    category: 'system'
+  },
+  
   // Windows Settings & Deep Tools
   ...WINDOWS_SETTINGS,
   ...DEEP_WINDOWS_TOOLS,
   ...POWER_COMMANDS,
   ...MEDIA_COMMANDS,
+  ...WEB_COMMANDS,
 
   {
     id: 'stop_talking',
@@ -249,5 +369,24 @@ export const getCommands = (): Command[] => [
     },
     keywords: ['settings', 'config', 'setup', 'options'],
     category: 'system'
-  }
+  },
+
+  // Dynamically add installed apps as first-class commands
+  ...(useAppStore.getState().installedApps.map(app => ({
+    id: `app-${app.name.toLowerCase().replace(/\s+/g, '-')}`,
+    title: app.name,
+    description: `Launch ${app.name}`,
+    icon: '🚀',
+    action: async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { useResourceStore } = await import('../stores/useResourceStore');
+      useResourceStore.getState().speak(`Opening ${app.name}`);
+      try {
+        await invoke('launch_app', { path: app.path });
+      } catch (err) { console.error(err); }
+      return { suppressOutput: true };
+    },
+    keywords: ['open', 'launch', app.name.toLowerCase()],
+    category: 'app' as const
+  })) as Command[])
 ];

@@ -97,9 +97,24 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
     
     // 5. Intelligent Routing & Auto-Execution
     const isVolumeCmd = cleanedText.includes('volume') || cleanedText.includes('louder') || cleanedText.includes('quieter') || cleanedText.includes('mute');
-    const isMediaCmd = ['play', 'pause', 'resume', 'next', 'previous', 'skip'].some(k => cleanedText.includes(k));
+    const isMediaControl = ['pause', 'resume', 'next', 'previous', 'skip'].some(k => cleanedText.includes(k));
+    const isSearchCmd = cleanedText.startsWith('search') || cleanedText.startsWith('google');
+    const isYoutubeCmd = cleanedText.startsWith('youtube');
+    const isPlayCmd = cleanedText.startsWith('play ');
 
-    if (isVolumeCmd || isMediaCmd) {
+    if (isSearchCmd || isYoutubeCmd || isPlayCmd) {
+      let cmdId = 'web-search';
+      if (isYoutubeCmd) cmdId = 'youtube-search';
+      if (isPlayCmd) cmdId = 'media-play-direct';
+      
+      const cmd = getCommands().find(c => c.id === cmdId);
+      if (cmd) {
+        executeCommand(cmd, cleanedText);
+        return;
+      }
+    }
+
+    if (isVolumeCmd || isMediaControl || (cleanedText === 'play')) {
       const bestMatch = filteredCommands.find(c => 
         c.category === 'system' && (
           cleanedText.includes(c.title.toLowerCase()) || 
@@ -126,6 +141,14 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
          if (openCmd) executeCommand(openCmd, cleanedText);
        }
        return;
+    }
+
+    if (['kill ', 'terminate ', 'stop process ', 'end '].some(k => cleanedText.startsWith(k))) {
+      const killCmd = getCommands().find(c => c.id === 'kill_app');
+      if (killCmd) {
+        executeCommand(killCmd, cleanedText);
+        return;
+      }
     }
   }, [filteredCommands, speak]);
 
@@ -234,7 +257,11 @@ const CommandPalette: FC<CommandPaletteProps> = ({ wakeWordDetected = false }) =
                       onMouseEnter={() => setSelectedIndex(index)}
                     >
                       <div className="ordinal-badge">{index + 1}</div>
-                      <span className="command-icon">{cmd.icon}</span>
+                      <span className="command-icon">
+                        {cmd.iconUrl ? (
+                          <img src={cmd.iconUrl} alt="" className="command-favicon" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                        ) : cmd.icon}
+                      </span>
                       <div className="command-details">
                         <div className="command-title">{cmd.title}</div>
                         <div className="command-desc">{cmd.description}</div>
