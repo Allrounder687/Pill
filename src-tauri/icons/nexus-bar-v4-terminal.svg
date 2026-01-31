@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- V4: TERMINAL - Developer-focused with chevron prompt -->
+  <defs>
+    <linearGradient id="bg4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#18181b"/>
+      <stop offset="100%" style="stop-color:#09090b"/>
+    </linearGradient>
+    <linearGradient id="green4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="100%" style="stop-color:#4ade80"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect x="32" y="32" width="448" height="448" rx="88" fill="url(#bg4)"/>
+  
+  <!-- Terminal window dots -->
+  <circle cx="96" cy="96" r="12" fill="#ef4444"/>
+  <circle cx="136" cy="96" r="12" fill="#eab308"/>
+  <circle cx="176" cy="96" r="12" fill="#22c55e"/>
+  
+  <!-- Command bar area -->
+  <rect x="80" y="200" width="352" height="112" rx="16" 
+        fill="#27272a" stroke="#3f3f46" stroke-width="2"/>
+  
+  <!-- Chevron prompt -->
+  <path d="M112 240 L144 256 L112 272" fill="none" stroke="url(#green4)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Cursor after prompt -->
+  <rect x="168" y="244" width="4" height="24" rx="2" fill="#4ade80"/>
+  
+  <!-- Underscore hints -->
+  <rect x="192" y="260" width="60" height="4" rx="2" fill="#52525b"/>
+  <rect x="264" y="260" width="40" height="4" rx="2" fill="#52525b"/>
+  <rect x="316" y="260" width="80" height="4" rx="2" fill="#52525b"/>
+</svg>

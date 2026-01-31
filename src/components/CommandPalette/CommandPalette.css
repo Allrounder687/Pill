@@ -34,64 +34,61 @@
 .palette-container {
   width: 100%;
   max-width: 650px;
-  background: rgba(18, 18, 18, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1), 
-              max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              border-radius 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  display: grid;
-  grid-template-rows: auto 0fr; /* Initial state */
-}
-
-.palette-overlay.pill-layout {
-  padding-top: 25vh;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: none;
+  overflow: visible;
+  position: relative;
 }
 
 .palette-overlay.pill-layout .palette-container {
-  max-width: 450px;
-  border-radius: 60px;
-  background: rgba(10, 10, 10, 0.9);
-  backdrop-filter: blur(25px);
-  border: 1px solid rgba(124, 77, 255, 0.3);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(124, 77, 255, 0.15);
-  transform: scale(1.05);
-  grid-template-rows: auto 0fr;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
+.palette-overlay.pill-layout .search-section {
+  background: rgba(18, 18, 18, 0.96);
+  border: 1px solid rgba(124, 77, 255, 0.3);
+  border-radius: 40px;
+  box-shadow: none; /* Removed shadow to eliminate ghosting */
+  padding: 12px 28px;
+  min-height: 60px;
+  backdrop-filter: blur(12px);
+}
+
+/* Full layout only applies its style to the INTERNAL elements to maintain transparency of the outer container */
 .palette-overlay.full-layout .palette-container {
-  max-width: 680px;
+  background: rgba(13, 13, 13, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.8) !important;
   border-radius: 20px;
-  background: rgba(13, 13, 13, 0.98);
-  backdrop-filter: blur(40px);
-  transform: scale(1);
-  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
+.palette-overlay.full-layout .search-section {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .results-wrapper {
   overflow: hidden;
-  transition: grid-template-rows 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.3s ease;
-  opacity: 0;
   display: flex;
   flex-direction: column;
 }
 
 .results-wrapper.expanded {
-  opacity: 1;
+  display: flex;
 }
 
 .results-wrapper.collapsed {
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 
-.palette-overlay.pill-layout .search-section {
-  padding: 12px 24px;
-  min-height: 60px;
-}
+/* Removing overlapping duplicate definition */
 
 .search-section {
   display: flex;
@@ -167,40 +164,44 @@
 .ordinal-badge {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #444;
-  background: rgba(255, 255, 255, 0.03);
+  color: #555;
+  background: transparent;
   width: 18px;
   height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: none;
   transition: all 0.2s;
 }
 
 .result-item.selected .ordinal-badge {
   color: #7c4dff;
-  border-color: rgba(124, 77, 255, 0.3);
-  background: rgba(124, 77, 255, 0.1);
+  border: none;
+  background: transparent;
 }
 
 .command-icon {
   font-size: 1.4rem;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .command-favicon {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 0 !important;
+  border: none !important;
+  background: transparent !important;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
@@ -332,4 +333,53 @@
   text-align: center;
   color: #555;
   font-size: 0.9rem;
+}
+
+/* AI Intent Premium Look */
+.result-item.ai {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%) !important;
+  border-left: 3px solid #8b5cf6 !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.result-item.ai::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: 0.5s;
+}
+
+.result-item.ai:hover::after,
+.result-item.ai.selected::after {
+  left: 100%;
+  transition: 0.8s;
+}
+
+.result-item.ai .command-title {
+  color: #a78bfa !important;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-item.ai.selected {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%) !important;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.3) !important;
+}
+
+@keyframes pulse-ai {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.loading-bar-fill.ai-resolving {
+  background: linear-gradient(90deg, #8b5cf6, #3b82f6) !important;
+  animation: pulse-ai 1.5s infinite;
 }

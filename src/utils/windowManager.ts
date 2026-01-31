@@ -32,8 +32,8 @@ export const windowManager = {
   async openSettings() {
     await this.spawn({
       label: 'settings',
-      title: 'Jarvis Settings',
-      url: '/settings',
+      title: 'Nexus Bar Settings',
+      url: 'index.html',
       width: 900,
       height: 650
     });

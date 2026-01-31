@@ -24,6 +24,8 @@ async fn create_window(
     width: f64,
     height: f64,
 ) -> Result<(), String> {
+    println!("[Backend] create_window: label={}, url={}", label, url);
+
     if let Some(window) = app_handle.get_webview_window(&label) {
         let _ = window.show();
         let _ = window.unminimize();
@@ -31,13 +33,19 @@ async fn create_window(
         return Ok(());
     }
 
-    let window_builder =
-        tauri::WebviewWindowBuilder::new(&app_handle, &label, tauri::WebviewUrl::App(url.into()))
-            .title(title)
-            .inner_size(width, height)
-            .decorations(label == "settings")
-            .transparent(label != "settings")
-            .center();
+    // Ensure URL doesn't have a leading slash for WebviewUrl::App on Windows
+    let url_path = url.trim_start_matches('/');
+
+    let window_builder = tauri::WebviewWindowBuilder::new(
+        &app_handle,
+        &label,
+        tauri::WebviewUrl::App(url_path.into()),
+    )
+    .title(title)
+    .inner_size(width, height)
+    .decorations(label == "settings")
+    .transparent(label != "settings")
+    .center();
 
     match window_builder.build() {
         Ok(window) => {
@@ -54,15 +62,15 @@ async fn create_window(
 
 pub fn run() {
     // Single Instance Guard: Auto-kill existing instances
-    use sysinfo::{System, ProcessesToUpdate};
+    use sysinfo::{ProcessesToUpdate, System};
     let mut sys = System::new_all();
     sys.refresh_processes(ProcessesToUpdate::All, true);
-    
+
     let current_pid = std::process::id();
-    
+
     for (pid, process) in sys.processes() {
         let name = process.name().to_string_lossy();
-        if name.to_lowercase().contains("voice-access") && pid.as_u32() != current_pid {
+        if name.to_lowercase().contains("nexus-bar") && pid.as_u32() != current_pid {
             println!("[Guard] Killing existing instance (PID: {})", pid);
             let _ = process.kill();
         }
@@ -72,10 +80,11 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(move |app| {
             // 1. Create Tray Menu
-            let quit_i = MenuItem::with_id(app, "quit", "Quit Jarvis", true, None::<&str>)?;
-            let show_i = MenuItem::with_id(app, "show", "Show Jarvis", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Quit Nexus Bar", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Show Nexus Bar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
             // 2. Setup Tray Icon
@@ -125,7 +134,9 @@ pub fn run() {
             services::system::list_processes,
             services::system::kill_process_by_name,
             services::system::kill_process_by_pid,
-            services::system::kill_process_tree
+            services::system::kill_process_tree,
+            services::context::get_context_snapshot,
+            services::context::capture_selected_text
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

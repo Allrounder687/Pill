@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "voice-access",
+  "productName": "Nexus Bar",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.nexusbar.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Voice Access",
+        "title": "Nexus Bar",
         "width": 800,
         "height": 650,
         "resizable": false,

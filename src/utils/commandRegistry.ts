@@ -13,7 +13,7 @@ export interface Command {
   iconUrl?: string;
   action: (query?: string) => Promise<{ keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void> | { keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void;
   keywords: string[];
-  category?: 'voice' | 'system' | 'app' | 'web' | 'win-settings' | 'voice-test';
+  category?: 'voice' | 'system' | 'app' | 'web' | 'win-settings' | 'voice-test' | 'ai';
   component?: React.ComponentType<{ onQueryChange: (q: string) => void, data?: any }>;
   interactiveData?: any;
 }
@@ -76,7 +76,7 @@ export const getCommands = (): Command[] => [
   {
     id: 'open_settings',
     title: 'App Settings',
-    description: 'Configure Jarvis',
+    description: 'Configure Nexus Bar',
     icon: '⚙️',
     action: async () => {
       import('./windowManager').then(({ windowManager }) => windowManager.openSettings());
@@ -94,18 +94,34 @@ export const getCommands = (): Command[] => [
   ...PROCESS_COMMANDS,
 
   // Dynamically add installed apps
-  ...useAppStore.getState().installedApps.map(app => ({
-    id: `app-${app.name.toLowerCase().replace(/\s+/g, '-')}`,
-    title: app.name,
-    description: `Launch ${app.name}`,
-    icon: '🚀',
-    iconUrl: app.iconUrl, // Use the iconUrl from the store (fetched via backend)
-    action: async () => {
-      useResourceStore.getState().speak(`Opening ${app.name}`);
-      try { await invoke('launch_app', { path: app.path }); } catch (err) { console.error(err); }
-      return { suppressOutput: true };
-    },
-    keywords: ['open', 'launch', app.name.toLowerCase()],
-    category: 'app' as const
-  }))
+  ...useAppStore.getState().installedApps.map(app => {
+    const isGame = app.category === 'game';
+    const isLauncher = app.category === 'launcher';
+    const isMidnight = app.name.toLowerCase().includes('midnightpad');
+    
+    // Clean name for better display (e.g., WWE2K25_x64 -> WWE 2K25)
+    let displayName = app.name;
+    if (isGame) {
+        displayName = displayName.replace(/_x64$/i, '').replace(/_x86$/i, '');
+    }
+
+    return {
+      id: `app-${app.name.toLowerCase().replace(/\s+/g, '-')}-${app.path.length}`,
+      title: displayName,
+      description: isGame ? `Play ${displayName}` : isLauncher ? `Open ${displayName}` : `Launch ${displayName}`,
+      icon: isGame ? '🎮' : isLauncher ? '🚀' : '📦',
+      iconUrl: app.iconUrl,
+      action: async () => {
+        useResourceStore.getState().speak(`Opening ${displayName}`);
+        try { await invoke('launch_app', { path: app.path }); } catch (err) { console.error(err); }
+        return { suppressOutput: true };
+      },
+      keywords: [
+        'open', 'launch', app.name.toLowerCase(), displayName.toLowerCase(),
+        ...(isGame || isMidnight ? ['games', 'gaming', 'play'] : []),
+        ...(isLauncher ? ['launcher', 'platform', 'store'] : [])
+      ],
+      category: 'app' as const
+    };
+  })
 ];

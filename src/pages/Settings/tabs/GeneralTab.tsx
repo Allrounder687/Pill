@@ -33,7 +33,7 @@ export const GeneralTab: FC<GeneralTabProps> = ({ syncSetting }) => {
         <div className="setting-row">
           <div className="setting-info">
             <span className="setting-label">Open at Login</span>
-            <span className="setting-sublabel">Start Jarvis when you sign in</span>
+            <span className="setting-sublabel">Start Nexus Bar when you sign in</span>
           </div>
           <div className="setting-action">
              <div className="toggle-switch small">

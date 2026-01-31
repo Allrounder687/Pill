@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- V5: VOICE - Audio waveform + command bar (since app has voice features) -->
+  <defs>
+    <linearGradient id="bg5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1b4b"/>
+      <stop offset="100%" style="stop-color:#0f0a1e"/>
+    </linearGradient>
+    <linearGradient id="wave5" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="50%" style="stop-color:#a78bfa"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect x="32" y="32" width="448" height="448" rx="88" fill="url(#bg5)"/>
+  
+  <!-- Audio waveform bars -->
+  <rect x="136" y="208" width="12" height="48" rx="6" fill="url(#wave5)" opacity="0.6"/>
+  <rect x="164" y="184" width="12" height="96" rx="6" fill="url(#wave5)" opacity="0.8"/>
+  <rect x="192" y="168" width="12" height="128" rx="6" fill="url(#wave5)"/>
+  <rect x="220" y="192" width="12" height="80" rx="6" fill="url(#wave5)" opacity="0.9"/>
+  <rect x="248" y="152" width="12" height="160" rx="6" fill="url(#wave5)"/>
+  <rect x="276" y="192" width="12" height="80" rx="6" fill="url(#wave5)" opacity="0.9"/>
+  <rect x="304" y="168" width="12" height="128" rx="6" fill="url(#wave5)"/>
+  <rect x="332" y="184" width="12" height="96" rx="6" fill="url(#wave5)" opacity="0.8"/>
+  <rect x="360" y="208" width="12" height="48" rx="6" fill="url(#wave5)" opacity="0.6"/>
+  
+  <!-- Command bar below -->
+  <rect x="120" y="352" width="272" height="56" rx="28" 
+        fill="#ffffff" fill-opacity="0.08" stroke="#a78bfa" stroke-width="2" stroke-opacity="0.5"/>
+  
+  <!-- Cursor -->
+  <rect x="152" y="368" width="3" height="24" rx="1.5" fill="#c4b5fd"/>
+  
+  <!-- Voice indicator dot -->
+  <circle cx="368" cy="380" r="10" fill="#8b5cf6">
+    <animate attributeName="opacity" values="1;0.4;1" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>

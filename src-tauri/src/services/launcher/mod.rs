@@ -11,6 +11,7 @@ pub struct AppEntry {
     pub name: String,
     pub path: String,
     pub icon: Option<String>,
+    pub category: Option<String>,
 }
 
 pub struct LauncherState {

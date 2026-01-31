@@ -4,11 +4,16 @@ import { getCommands } from '../utils/commandRegistry';
 import type { Command } from '../utils/commandRegistry';
 import { currencyService } from '../services/CurrencyService';
 import type { ConversionResult } from '../services/CurrencyService';
+import { useIntentEngine } from './useIntentEngine';
+import { executePipeline } from '../utils/pipelineExecutor';
+import { useContextStore } from '../stores/useContextStore';
 
 export const useCommandFiltering = (query: string, windowMode: string) => {
   const installedApps = useAppStore(state => state.installedApps);
   const [liveCurrency, setLiveCurrency] = useState<ConversionResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const { intentResult, isResolving } = useIntentEngine(query);
+  const snapshot = useContextStore(state => state.snapshot);
 
   const allStaticCommands = useMemo(() => getCommands(), [installedApps]);
 
@@ -55,18 +60,36 @@ export const useCommandFiltering = (query: string, windowMode: string) => {
 
     let finalResults = [...matched];
 
-    if (lowerQuery) {
-       finalResults.sort((a, b) => {
-         const getScore = (_cmd: Command, t: string) => {
-           const lowT = t.toLowerCase();
-           if (lowT === lowerQuery) return 100;
-           if (lowerQuery.startsWith(lowT)) return 80;
-           if (lowT.startsWith(lowerQuery)) return 70;
-           return 0;
-         };
-         return getScore(b, b.title) - getScore(a, a.title);
-       });
-    }
+     if (lowerQuery) {
+        finalResults.sort((a, b) => {
+          const getScore = (cmd: Command) => {
+            const lowTitle = cmd.title.toLowerCase();
+            const isGameIntent = lowerQuery === 'games' || lowerQuery === 'gaming' || lowerQuery === 'play';
+            const isActualGame = cmd.keywords.includes('games') || cmd.keywords.includes('gaming');
+            
+            let score = 0;
+            if (lowTitle === lowerQuery) score += 100;
+            else if (lowTitle.startsWith(lowerQuery)) score += 80;
+            else if (lowerQuery.startsWith(lowTitle)) score += 75;
+            else if (lowTitle.includes(lowerQuery)) score += 50;
+
+            // Keyword boosts
+            if (cmd.keywords.some(k => k.toLowerCase() === lowerQuery)) score += 90;
+            
+            // INTENT BOOST: If searching for games, push real games to the absolute top
+            if (isGameIntent && isActualGame) {
+              score += 200; 
+              // Penalize things that look like tools or launchers when intent is games
+              if (lowTitle.includes('sdk') || lowTitle.includes('launcher') || lowTitle.includes('tools')) {
+                score -= 50;
+              }
+            }
+
+            return score;
+          };
+          return getScore(b) - getScore(a);
+        });
+     }
 
     if (liveCurrency) {
       const currencyMiniApp: Command = {
@@ -99,8 +122,39 @@ export const useCommandFiltering = (query: string, windowMode: string) => {
       }
     }
 
-    return finalResults;
-  }, [query, allStaticCommands, windowMode, liveCurrency]);
+    if (intentResult && intentResult.confidence > 0.6) {
+      const aiCommand: Command = {
+        id: `ai-intent-${intentResult.intent}`,
+        title: intentResult.intent.charAt(0).toUpperCase() + intentResult.intent.slice(1),
+        description: intentResult.reasoning,
+        icon: '✨',
+        action: async () => {
+          await executePipeline(intentResult.actions);
+        },
+        keywords: ['ai', 'intent', 'magic'],
+        category: 'ai' as any
+      };
+      // Insert AI intent at the top
+      finalResults = [aiCommand, ...finalResults];
+    }
 
-  return { filteredCommands, isSearching };
+    // Add context-based actions
+    if (snapshot?.clipboard && snapshot.clipboard.length > 10) {
+        finalResults.push({
+            id: 'ai-summarize-clipboard',
+            title: 'Summarize Clipboard',
+            description: 'AI summary of copied text',
+            icon: '📝',
+            action: async () => {
+                await executePipeline([{ action: 'summarize', params: { text: snapshot.clipboard } }]);
+            },
+            keywords: ['summarize', 'clipboard', 'ai'],
+            category: 'ai' as any
+        });
+    }
+
+    return finalResults;
+  }, [query, allStaticCommands, windowMode, liveCurrency, intentResult, snapshot]);
+
+  return { filteredCommands, isSearching: isSearching || isResolving };
 };

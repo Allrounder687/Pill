@@ -46,7 +46,11 @@ pub async fn kill_process_by_name(name: String) -> Result<bool, String> {
         let p_name = process.name().to_string_lossy().to_lowercase();
         if p_name.contains(&target) || target.contains(&p_name) {
             process.kill();
-            println!("[System] Killed process: {:?} (PID: {})", process.name(), pid);
+            println!(
+                "[System] Killed process: {:?} (PID: {})",
+                process.name(),
+                pid
+            );
             killed = true;
         }
     }
@@ -105,7 +109,10 @@ pub async fn kill_process_tree(pid: u32) -> Result<bool, String> {
         }
     }
 
-    println!("[System] Terminated process tree for PID {}. Total processes: {}", pid, killed_count);
+    println!(
+        "[System] Terminated process tree for PID {}. Total processes: {}",
+        pid, killed_count
+    );
     Ok(true)
 }
 
@@ -146,11 +153,14 @@ pub async fn system_media_control(action: String, repeat: Option<u32>) -> Result
 
 #[tauri::command]
 pub async fn get_app_icon(path: String) -> Result<String, String> {
+    use base64::{engine::general_purpose, Engine as _};
+    use windows::core::PCWSTR;
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO,
+        BITMAPINFOHEADER, DIB_RGB_COLORS,
+    };
     use windows::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
     use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, ICONINFO};
-    use windows::Win32::Graphics::Gdi::{GetDIBits, GetDC, ReleaseDC, CreateCompatibleDC, SelectObject, DeleteDC, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS};
-    use windows::core::PCWSTR;
-    use base64::{engine::general_purpose, Engine as _};
 
     let mut shfi = SHFILEINFOW::default();
     let wide_path: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
@@ -206,7 +216,7 @@ pub async fn get_app_icon(path: String) -> Result<String, String> {
 
         // Cleanup
         SelectObject(h_dc_mem, h_old_bmp);
-        DeleteDC(h_dc_mem);
+        let _ = DeleteDC(h_dc_mem);
         ReleaseDC(None, h_dc_screen);
         let _ = windows::Win32::Graphics::Gdi::DeleteObject(icon_info.hbmColor);
         let _ = windows::Win32::Graphics::Gdi::DeleteObject(icon_info.hbmMask);
@@ -216,48 +226,10 @@ pub async fn get_app_icon(path: String) -> Result<String, String> {
             return Err("Failed to get bits".to_string());
         }
 
-        // Convert BGRA to RGBA (Canvas/Web expectations)
-        for i in (0..buffer.len()).step_by(4) {
-            let b = buffer[i];
-            let r = buffer[i + 2];
-            buffer[i] = r;
-            buffer[i + 2] = b;
-        }
-
-        // We'll return it as a raw data URI with a custom type for now
-        // Chromium can sometimes render raw BMP bits if we wrap them, 
-        // but for now let's just use PNG which is the safest.
-        // Actually, without a PNG crate, let's just use a simple BMP header.
-        // Or even better, let's just return a list of pixels and let the frontend draw it.
-        // BUT, if I want to use it in an <img> tag, a BMP header is easy enough.
-
-        let mut bmp_file = Vec::with_capacity(buffer.len() + 54);
-        // File Header
-        bmp_file.extend_from_slice(b"BM");
-        bmp_file.extend_from_slice(&((54 + buffer.len()) as u32).to_le_bytes());
-        bmp_file.extend_from_slice(&[0, 0, 0, 0]);
-        bmp_file.extend_from_slice(&(54u32).to_le_bytes());
-        // Info Header
-        bmp_file.extend_from_slice(&(40u32).to_le_bytes());
-        bmp_file.extend_from_slice(&(48i32).to_le_bytes());
-        bmp_file.extend_from_slice(&(-48i32).to_le_bytes());
-        bmp_file.extend_from_slice(&(1u16).to_le_bytes());
-        bmp_file.extend_from_slice(&(32u16).to_le_bytes());
-        bmp_file.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        // Data (BGRA) - wait, GetDIBits returns BGRA which BMP expects!
-        // So I should NOT have swapped R and B above if I'm making a BMP.
-        
-        // Re-swap back to BGRA for BMP format
-        for i in (0..buffer.len()).step_by(4) {
-            let r = buffer[i];
-            let b = buffer[i + 2];
-            buffer[i] = b;
-            buffer[i + 2] = r;
-        }
-        bmp_file.extend_from_slice(&buffer);
-
-        let b64 = general_purpose::STANDARD.encode(&bmp_file);
-        Ok(format!("data:image/bmp;base64,{}", b64))
+        // Buffer is currently in BGRA (standard GDI format)
+        // We'll return it as a string prefix identifying the format
+        let b64 = general_purpose::STANDARD.encode(&buffer);
+        Ok(format!("icon-bgra:{}", b64))
     }
 }
 
@@ -291,4 +263,3 @@ pub async fn get_youtube_video_id(
 
     Ok(video_id.to_string())
 }
-

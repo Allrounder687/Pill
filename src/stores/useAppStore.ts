@@ -120,7 +120,7 @@ export const useAppStore = create<AppState>()(
       setWakeWordDetected: (detected) => set({ wakeWordDetected: detected }),
     }),
     {
-      name: 'jarvis-app-storage',
+      name: 'nexus-bar-app-storage',
       partialize: (state) => ({
         selectedVoice: state.selectedVoice,
         voiceSpeed: state.voiceSpeed,

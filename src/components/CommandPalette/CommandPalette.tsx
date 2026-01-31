@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -9,6 +9,7 @@ import { useResourceStore } from '../../stores/useResourceStore';
 import { useSTT } from '../../hooks/useSTT';
 import { useCommandFiltering } from '../../hooks/useCommandFiltering';
 import { normalizeLaunchIntent } from '../../utils/voiceUtils';
+import { useContextStore } from '../../stores/useContextStore';
 import VoiceIndicator from '../VoiceIndicator/VoiceIndicator';
 import { CommandResults } from './CommandResults';
 import './CommandPalette.css';
@@ -23,10 +24,17 @@ const SettingsIcon = () => (
 const CommandPalette: React.FC = () => {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isPrewarming, setIsPrewarming] = useState(true);
+  
+  // Prewarm the layout on mount to ensure smooth animations later
+  useEffect(() => {
+    const timer = setTimeout(() => setIsPrewarming(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
   
   // High-priority for input feeling, lower-priority for filtering
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), 150);
+    const timer = setTimeout(() => setDebouncedQuery(query), 50); // Faster filtering
     return () => clearTimeout(timer);
   }, [query]);
 
@@ -41,21 +49,38 @@ const CommandPalette: React.FC = () => {
   const { isSpeaking, isTTSInitializing: ttsInitializing } = useResourceStore();
   
   // Filtering uses the debounced query to prevent stutter while typing
+  const startFiltering = performance.now();
   const { filteredCommands, isSearching } = useCommandFiltering(debouncedQuery, windowMode);
+  const endFiltering = performance.now();
+
+  useEffect(() => {
+    if (debouncedQuery) {
+      console.log(`[Perf] Filtering for "${debouncedQuery}" took ${(endFiltering - startFiltering).toFixed(2)}ms`);
+    }
+  }, [debouncedQuery]);
+
+  useLayoutEffect(() => {
+    if (isVisible) {
+      const startPaint = performance.now();
+      // We log at the end of the effect (after commit)
+      const endPaint = performance.now();
+      console.log(`[Perf] Palette Render commit took ${(endPaint - startPaint).toFixed(2)}ms`);
+    }
+  }, [isVisible, query, filteredCommands]);
 
   const openSettings = useCallback(() => {
     setIsVisible(false);
     invoke('create_window', {
       label: 'settings',
-      title: 'Voice Access Settings',
-      url: '/settings',
+      title: 'Nexus Bar Settings',
+      url: 'index.html',
       width: 850,
       height: 650
     }).catch(console.error);
   }, [setIsVisible]);
 
   const executeCommand = useCallback(async (cmd: Command, finalQuery?: string) => {
-    if (cmd.id === 'open-settings') {
+    if (cmd.id === 'open_settings') {
       openSettings();
       return;
     }
@@ -68,11 +93,14 @@ const CommandPalette: React.FC = () => {
     }
   }, [query, setIsVisible]);
 
-  const handleVoiceResult = useCallback((text: string) => {
+  const handleVoiceResult = useCallback((text: string, isFinal: boolean) => {
     const cleanedText = text.toLowerCase().trim();
     if (!cleanedText) return;
     
     setQuery(cleanedText);
+
+    // Don't execute commands until the speaker has finished (final message)
+    if (!isFinal) return;
 
     if (['kill ', 'terminate ', 'stop process ', 'end '].some(k => cleanedText.startsWith(k))) {
       const killCmd = getCommands().find(c => c.id === 'kill_app');
@@ -137,9 +165,11 @@ const CommandPalette: React.FC = () => {
     const win = getCurrentWindow();
     if (isVisible) {
       win.show().then(() => win.setFocus());
-      setTimeout(() => inputRef.current?.focus(), 150);
+      inputRef.current?.focus();
       
-      // Auto-start listening if triggered by wake word
+      // Refresh context snapshot for Intent Engine
+      useContextStore.getState().refreshSnapshot();
+      
       if (wakeWordDetected && !isListening) {
         startListening();
       }
@@ -151,7 +181,7 @@ const CommandPalette: React.FC = () => {
     }
   }, [isVisible, wakeWordDetected, isListening, startListening, stopListening]);
 
-  const isPillMode = query.trim().length === 0 && windowMode === 'compact';
+  const isPillMode = (query.trim().length === 0 && windowMode === 'compact');
 
   return (
     <div className={`palette-overlay ${isVisible ? 'visible' : 'hidden'} ${isPillMode ? 'pill-layout' : 'full-layout'}`} onClick={() => setIsVisible(false)}>
@@ -163,7 +193,7 @@ const CommandPalette: React.FC = () => {
           </button>
         </div>
         
-        {isSearching && <div className="loading-bar-container"><div className="loading-bar-fill" /></div>}
+        {isSearching && <div className="loading-bar-container"><div className={`loading-bar-fill ${query.length > 5 ? 'ai-resolving' : ''}`} /></div>}
         <div className={`results-wrapper ${isPillMode ? 'collapsed' : 'expanded'}`}>
           <CommandResults 
             filteredCommands={filteredCommands} 
@@ -173,11 +203,12 @@ const CommandPalette: React.FC = () => {
             query={query}
             setQuery={setQuery}
             userNavigated={userNavigated}
+            isPrewarming={isPrewarming}
           />
           <div className="palette-footer">
             <div className="footer-left">
               <span className={`status-dot ${ttsInitializing ? 'loading' : 'ready'}`} />
-              {ttsInitializing ? 'Loading Voice Engine...' : 'Jarvis Online'}
+              {ttsInitializing ? 'Loading Voice Engine...' : 'Nexus Bar Online'}
             </div>
             <button className="footer-settings-btn" onClick={openSettings} title="Open Settings">
               <SettingsIcon />

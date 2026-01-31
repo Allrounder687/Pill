@@ -17,7 +17,7 @@ export const ShortcutsTab: FC<ShortcutsTabProps> = ({ syncSetting }) => {
        <div className="settings-group">
          <div className="setting-row">
            <ShortcutRecorder 
-              label="Summon Jarvis" 
+              label="Summon Nexus Bar" 
               value={shortcutSummon} 
               onChange={(val) => { setShortcutSummon(val); syncSetting('shortcutSummon', val); }} 
            />

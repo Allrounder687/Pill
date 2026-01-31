@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- V5 PATHS: Voice waveform + "NEXUS BAR" as vector paths (PT Sans style) -->
+  <defs>
+    <linearGradient id="bg5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1b4b"/>
+      <stop offset="100%" style="stop-color:#0f0a1e"/>
+    </linearGradient>
+    <linearGradient id="wave5" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="50%" style="stop-color:#a78bfa"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#e0e7ff"/>
+      <stop offset="50%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#e0e7ff"/>
+    </linearGradient>
+    <linearGradient id="barFill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0.04"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect x="32" y="32" width="448" height="448" rx="88" fill="url(#bg5)"/>
+  
+  <!-- Audio waveform bars -->
+  <rect x="136" y="188" width="12" height="48" rx="6" fill="url(#wave5)" opacity="0.6"/>
+  <rect x="164" y="164" width="12" height="96" rx="6" fill="url(#wave5)" opacity="0.8"/>
+  <rect x="192" y="148" width="12" height="128" rx="6" fill="url(#wave5)"/>
+  <rect x="220" y="172" width="12" height="80" rx="6" fill="url(#wave5)" opacity="0.9"/>
+  <rect x="248" y="132" width="12" height="160" rx="6" fill="url(#wave5)"/>
+  <rect x="276" y="172" width="12" height="80" rx="6" fill="url(#wave5)" opacity="0.9"/>
+  <rect x="304" y="148" width="12" height="128" rx="6" fill="url(#wave5)"/>
+  <rect x="332" y="164" width="12" height="96" rx="6" fill="url(#wave5)" opacity="0.8"/>
+  <rect x="360" y="188" width="12" height="48" rx="6" fill="url(#wave5)" opacity="0.6"/>
+  
+  <!-- Command bar with glassmorphism -->
+  <rect x="88" y="332" width="336" height="72" rx="36" fill="url(#barFill)"/>
+  <rect x="88" y="332" width="336" height="72" rx="36" 
+        fill="none" stroke="#a78bfa" stroke-width="2" stroke-opacity="0.4"/>
+  
+  <!-- NEXUS BAR as vector paths (PT Sans Bold style) - centered at x=256 -->
+  <g fill="url(#textGrad)" transform="translate(120, 356)">
+    <!-- N -->
+    <path d="M0,0 L0,28 L4,28 L4,8 L16,28 L20,28 L20,0 L16,0 L16,20 L4,0 Z"/>
+    <!-- E -->
+    <path d="M26,0 L26,28 L44,28 L44,24 L30,24 L30,16 L42,16 L42,12 L30,12 L30,4 L44,4 L44,0 Z"/>
+    <!-- X -->
+    <path d="M50,0 L58,12 L50,28 L55,28 L61,18 L67,28 L72,28 L64,12 L72,0 L67,0 L61,10 L55,0 Z"/>
+    <!-- U -->
+    <path d="M78,0 L78,20 Q78,28 88,28 Q98,28 98,20 L98,0 L94,0 L94,19 Q94,24 88,24 Q82,24 82,19 L82,0 Z"/>
+    <!-- S -->
+    <path d="M104,4 Q104,0 114,0 Q124,0 124,6 L120,6 Q120,4 114,4 Q108,4 108,6 Q108,8 114,10 L120,12 Q124,14 124,20 Q124,28 114,28 Q104,28 104,22 L108,22 Q108,24 114,24 Q120,24 120,20 Q120,18 114,16 L108,14 Q104,12 104,6 Z"/>
+    
+    <!-- Space -->
+    
+    <!-- B -->
+    <path d="M140,0 L140,28 L154,28 Q162,28 162,22 Q162,17 156,16 Q160,15 160,10 Q160,0 152,0 Z M144,4 L152,4 Q156,4 156,8 Q156,12 152,12 L144,12 Z M144,16 L154,16 Q158,16 158,22 Q158,24 154,24 L144,24 Z"/>
+    <!-- A -->
+    <path d="M168,28 L172,28 L175,20 L187,20 L190,28 L194,28 L181,0 L175,0 Z M176,16 L181,4 L186,16 Z"/>
+    <!-- R -->
+    <path d="M200,0 L200,28 L204,28 L204,16 L212,16 L218,28 L223,28 L216,15 Q222,14 222,8 Q222,0 214,0 Z M204,4 L214,4 Q218,4 218,8 Q218,12 214,12 L204,12 Z"/>
+  </g>
+  
+  <!-- Subtle cursor blink before text -->
+  <rect x="110" y="356" width="3" height="28" rx="1.5" fill="#c4b5fd" opacity="0.8"/>
+  
+  <!-- Voice indicator dot -->
+  <circle cx="400" cy="368" r="12" fill="#8b5cf6" opacity="0.9"/>
+</svg>

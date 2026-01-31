@@ -2,6 +2,7 @@ import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { useEffect, Suspense, lazy, useCallback, useRef } from 'react';
 import { listen, emit } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut';
 import { useAppStore } from './stores/useAppStore';
 import { useResourceStore } from './stores/useResourceStore';
@@ -35,7 +36,9 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
 }
 
 function App() {
-  const isSettings = window.location.pathname.includes('settings');
+  const isSettings = window.location.pathname.includes('settings') || 
+                     window.location.hash.includes('settings') ||
+                     getCurrentWindow().label === 'settings';
   const setPaletteVisible = useAppStore(state => state.setPaletteVisible);
   const setWakeWordDetected = useAppStore(state => state.setWakeWordDetected);
   const refreshApps = useAppStore(state => state.refreshApps);

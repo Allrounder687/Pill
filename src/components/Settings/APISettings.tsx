@@ -15,6 +15,7 @@ const APIS_LIST: APIConfig[] = [
   { id: 'youtube', name: 'YouTube Data API', type: 'Media', icon: '📺', description: 'Video search & playback', isOptional: false },
   { id: 'openai', name: 'OpenAI (GPT-4)', type: 'Intelligence', icon: '🧠', description: 'Core LLM reasoning', isOptional: true },
   { id: 'perplexity', name: 'Perplexity AI', type: 'Research', icon: '🌐', description: 'Web search & citations', isOptional: true },
+  { id: 'ollama', name: 'Ollama (Local)', type: 'Private', icon: '🦙', description: 'Local LLM (url & model)', isOptional: true },
   { id: 'elevenlabs', name: 'ElevenLabs', type: 'Voice', icon: '🗣️', description: 'Premium TTS synthesis', isOptional: true },
   { id: 'github', name: 'GitHub API', type: 'Developer', icon: '🐙', description: 'Repository & Gist access', isOptional: true },
   { id: 'spotify', name: 'Spotify SDK', type: 'Music', icon: '🎵', description: 'Music playback control', isOptional: true },
@@ -27,6 +28,8 @@ const APISettings: React.FC = () => {
     youtubeApiKey, setYoutubeApiKey,
     openaiApiKey, setOpenaiApiKey,
     perplexityApiKey, setPerplexityApiKey,
+    ollamaUrl, setOllamaUrl,
+    ollamaModel, setOllamaModel,
     apiKeys, setApiKey
   } = useConfigStore();
 
@@ -50,6 +53,40 @@ const APISettings: React.FC = () => {
       
       <div className="settings-group">
         {APIS_LIST.map((api) => {
+          if (api.id === 'ollama') {
+            return (
+              <div key={api.id} className="setting-row">
+                <div className="setting-info">
+                  <div className="api-label-row">
+                    <span className="api-row-icon">{api.icon}</span>
+                    <span className="setting-label">{api.name}</span>
+                  </div>
+                  <span className="setting-sublabel">{api.description}</span>
+                </div>
+                
+                <div className="setting-action api-action-group ollama-action-group">
+                  <input 
+                    type="text" 
+                    className="rc-input-api"
+                    placeholder="URL (e.g. http://localhost:11434)"
+                    value={ollamaUrl}
+                    onChange={(e) => setOllamaUrl(e.target.value)}
+                  />
+                  <input 
+                    type="text" 
+                    className="rc-input-api"
+                    placeholder="Model (e.g. llama3)"
+                    value={ollamaModel}
+                    onChange={(e) => setOllamaModel(e.target.value)}
+                  />
+                  <div className={`api-status-pill status-active`}>
+                    Local
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           const value = getKeyValue(api.id);
           const isActive = value.length > 0;
           
