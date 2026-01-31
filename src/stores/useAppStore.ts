@@ -42,6 +42,8 @@ interface AppState {
   // Global Audio/Mic State
   isSTTActive: boolean;
   setSTTActive: (active: boolean) => void;
+  wakeWordDetected: boolean;
+  setWakeWordDetected: (detected: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -98,6 +100,8 @@ export const useAppStore = create<AppState>()(
 
       isSTTActive: false,
       setSTTActive: (active) => set({ isSTTActive: active }),
+      wakeWordDetected: false,
+      setWakeWordDetected: (detected) => set({ wakeWordDetected: detected }),
     }),
     {
       name: 'jarvis-app-storage',

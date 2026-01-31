@@ -73,6 +73,43 @@ pub async fn kill_process_by_pid(pid: u32) -> Result<bool, String> {
 }
 
 #[tauri::command]
+pub async fn kill_process_tree(pid: u32) -> Result<bool, String> {
+    let mut sys = System::new_all();
+    sys.refresh_all();
+
+    let target_pid = Pid::from(pid as usize);
+    let mut to_kill = vec![target_pid];
+    let mut i = 0;
+
+    // Breadth-first search for all descendants
+    while i < to_kill.len() {
+        let current_parent = to_kill[i];
+        for (p, proc) in sys.processes() {
+            if let Some(parent) = proc.parent() {
+                if parent == current_parent {
+                    if !to_kill.contains(p) {
+                        to_kill.push(*p);
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    let mut killed_count = 0;
+    // Kill in reverse order (children first)
+    for p in to_kill.iter().rev() {
+        if let Some(proc) = sys.process(*p) {
+            proc.kill();
+            killed_count += 1;
+        }
+    }
+
+    println!("[System] Terminated process tree for PID {}. Total processes: {}", pid, killed_count);
+    Ok(true)
+}
+
+#[tauri::command]
 pub async fn system_media_control(action: String, repeat: Option<u32>) -> Result<(), String> {
     println!(
         "[System] Media Control: {} (x{})",
@@ -132,7 +169,7 @@ pub async fn get_app_icon(path: String) -> Result<String, String> {
             return Err("Failed to extract icon".to_string());
         }
 
-        DestroyIcon(shfi.hIcon);
+        let _ = DestroyIcon(shfi.hIcon);
     }
 
     Ok(path)

@@ -1,0 +1,130 @@
+.currency-mini-app {
+  background: rgba(124, 77, 255, 0.05);
+  border: 1px solid rgba(124, 77, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.currency-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.currency-input-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 12px;
+  transition: all 0.2s;
+}
+
+.currency-input-group:focus-within {
+  border-color: rgba(124, 77, 255, 0.5);
+  box-shadow: 0 0 10px rgba(124, 77, 255, 0.1);
+}
+
+.currency-amount-input {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  width: 100%;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.currency-amount-input::-webkit-outer-spin-button,
+.currency-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.currency-code {
+  color: #7c4dff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin-left: 8px;
+}
+
+.currency-value {
+  color: #00e676;
+  font-size: 1.1rem;
+  font-weight: 700;
+  flex: 1;
+}
+
+.currency-separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swap-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #777;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.swap-btn:hover {
+  background: rgba(124, 77, 255, 0.2);
+  color: #7c4dff;
+  transform: rotate(180deg);
+}
+
+.copy-btn {
+  background: rgba(124, 77, 255, 0.2);
+  border: 1px solid rgba(124, 77, 255, 0.4);
+  color: #fff;
+  border-radius: 8px;
+  width: 44px; /* Slightly larger */
+  height: 44px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background: #7c4dff;
+  border-color: #7c4dff;
+  transform: scale(1.05);
+}
+
+.copy-btn.copied {
+  background: #00e676;
+  color: #fff;
+  border-color: #00e676;
+}
+
+.currency-footer {
+  font-size: 0.75rem;
+  color: #555;
+  text-align: right;
+  font-family: monospace;
+}

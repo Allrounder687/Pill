@@ -1,6 +1,6 @@
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
-import { useEffect, Suspense, lazy, useState, useCallback, useRef } from 'react';
+import { useEffect, Suspense, lazy, useCallback, useRef } from 'react';
 import { listen, emit } from '@tauri-apps/api/event';
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut';
 import { useAppStore } from './stores/useAppStore';
@@ -37,8 +37,7 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
 function App() {
   const isSettings = window.location.pathname.includes('settings');
   const setPaletteVisible = useAppStore(state => state.setPaletteVisible);
-  const setSelectedVoice = useAppStore(state => state.setSelectedVoice);
-  const setVoiceSpeed = useAppStore(state => state.setVoiceSpeed);
+  const setWakeWordDetected = useAppStore(state => state.setWakeWordDetected);
   
   const setFollowSystemAppearance = useAppStore(state => state.setFollowSystemAppearance);
   const followSystemAppearance = useAppStore(state => state.followSystemAppearance);
@@ -53,7 +52,6 @@ function App() {
 
   const initTTS = useResourceStore(state => state.initTTS);
   const { speak } = useTTS();
-  const [wakeWordDetected, setWakeWordDetected] = useState(false);
   const shortcutsRegistered = useRef(false);
   const wakeWordStarted = useRef(false);
 
@@ -87,9 +85,6 @@ function App() {
           } catch (e) {
             if (String(e).includes('already registered')) {
               console.warn(`[App] Shortcut "${key}" is already taken by another app or the OS.`);
-              if (key === 'Alt+Space') {
-                console.info('[App] TIP: Alt+Space is reserved by Windows for the System Menu. Try Alt+Z or Ctrl+Alt+Space in Settings.');
-              }
             } else {
               console.warn(`[App] Shortcut management failed for ${key}:`, e);
             }
@@ -117,19 +112,10 @@ function App() {
     };
 
     setupShortcuts();
-    
-    // We don't unregisterAll here anymore - it's too aggressive and causes race conditions during HMR
-    // Instead, we let the checks above handle existing registrations.
   }, [isSettings, shortcutSummon, shortcutPTT, setPaletteVisible]);
 
   // Event Listeners for Sync
   useEffect(() => {
-    const unlistenVoice = listen('sync-voice-preference', (event: any) => {
-      setSelectedVoice(event.payload);
-    });
-    const unlistenSpeed = listen('sync-speed-preference', (event: any) => {
-      setVoiceSpeed(event.payload);
-    });
     const unlistenGeneric = listen('sync-app-setting', (event: any) => {
       const { key, value } = event.payload as { key: string; value: any };
       switch (key) {
@@ -143,18 +129,16 @@ function App() {
     });
 
     return () => {
-      unlistenVoice.then(f => (typeof f === 'function' ? f() : undefined));
-      unlistenSpeed.then(f => (typeof f === 'function' ? f() : undefined));
       unlistenGeneric.then(f => (typeof f === 'function' ? f() : undefined));
     };
-  }, [setSelectedVoice, setVoiceSpeed, setFollowSystemAppearance, setOpenAtLogin, setShowInSystemTray, setWindowMode, setShortcutSummon, setShortcutPTT]);
+  }, [setFollowSystemAppearance, setOpenAtLogin, setShowInSystemTray, setWindowMode, setShortcutSummon, setShortcutPTT]);
 
   // Main Logic (Main Window Only)
   const wakeWordCallback = useCallback(() => {
     setWakeWordDetected(true);
     setPaletteVisible(true);
-    setTimeout(() => setWakeWordDetected(false), 1000);
-  }, [setPaletteVisible]);
+    setTimeout(() => setWakeWordDetected(false), 2000);
+  }, [setPaletteVisible, setWakeWordDetected]);
 
   const { startListening: startWakeWordListening, stopListening: stopWakeWordListening } = useWakeWord(
     wakeWordCallback
@@ -165,7 +149,6 @@ function App() {
   useEffect(() => {
     if (isSettings) return;
 
-    // Pause Wake Word ONLY if STT is actively using the microphone
     if (isSTTActive) {
       if (wakeWordStarted.current) {
         stopWakeWordListening();
@@ -177,7 +160,6 @@ function App() {
 
     if (!wakeWordStarted.current) {
       wakeWordStarted.current = true;
-      // Add delay to ensure mic is released before restart
       setTimeout(() => {
         if (!isSTTActive && wakeWordStarted.current) {
           startWakeWordListening().catch(err => {
@@ -196,18 +178,12 @@ function App() {
     };
   }, [isSettings, isSTTActive, startWakeWordListening, stopWakeWordListening]);
 
-  // Sync palette visibility with window visibility
   useEffect(() => {
     if (isSettings) return;
     initTTS().catch(err => console.error('[App] TTS init failed:', err));
     
-    // Remaining sync listeners
     const unlistenSync = listen('sync-palette-visibility', (event: any) => {
       setPaletteVisible(event.payload, false);
-    });
-
-    const unlistenGlobal = listen('show-palette-global', () => {
-      setPaletteVisible(true);
     });
 
     const unlistenSpeak = listen('request-speak', (event: any) => {
@@ -216,7 +192,6 @@ function App() {
     });
     return () => {
       unlistenSync.then(f => (typeof f === 'function' ? f() : undefined));
-      unlistenGlobal.then(f => (typeof f === 'function' ? f() : undefined));
       unlistenSpeak.then(f => (typeof f === 'function' ? f() : undefined));
     };
   }, [isSettings, setPaletteVisible, speak]);
@@ -236,7 +211,7 @@ function App() {
   return (
     <ErrorBoundary>
       <div className="main-transparent-context">
-        <CommandPalette wakeWordDetected={wakeWordDetected} />
+        <CommandPalette />
         <Toaster />
       </div>
     </ErrorBoundary>

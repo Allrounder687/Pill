@@ -53,6 +53,21 @@ async fn create_window(
 }
 
 pub fn run() {
+    // Single Instance Guard: Auto-kill existing instances
+    use sysinfo::{System, ProcessesToUpdate};
+    let mut sys = System::new_all();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    
+    let current_pid = std::process::id();
+    
+    for (pid, process) in sys.processes() {
+        let name = process.name().to_string_lossy();
+        if name.to_lowercase().contains("voice-access") && pid.as_u32() != current_pid {
+            println!("[Guard] Killing existing instance (PID: {})", pid);
+            let _ = process.kill();
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
@@ -109,7 +124,8 @@ pub fn run() {
             services::system::get_app_icon,
             services::system::list_processes,
             services::system::kill_process_by_name,
-            services::system::kill_process_by_pid
+            services::system::kill_process_by_pid,
+            services::system::kill_process_tree
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
