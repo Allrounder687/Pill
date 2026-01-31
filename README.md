@@ -14,6 +14,10 @@
 
 </div>
 
+<p align="center">
+  <img src="C:/Users/allro/.gemini/antigravity/brain/70ca2ce9-43d4-470c-9031-0ba25a7538f0/pill_header_mockup_1769880249832.png" alt="Pill App Mockup" width="600">
+</p>
+
 ## ✨ What is Pill?
 
 **Pill** is a modern, high-performance desktop companion built with Tauri and Rust. It transforms your desktop into a voice-first command center, allowing you to launch apps, control your system, and interact with AI—all through seamless voice commands or a lightning-fast command palette.
@@ -26,6 +30,14 @@
 - 🔊 **Neural TTS**: Integrated Kokoro TTS for natural, high-quality voice responses.
 - 🛠️ **MCP Integration**: Extend functionality with the Model Context Protocol (MCP).
 - 🎮 **Game Profiles**: Specialized features for gaming, including cheat management and process control.
+
+## 🌈 Why Pill?
+
+- ⚡ **Built for Power Users**: Keyboard-centric design with sub-second latency for all operations.
+- 🗣️ **NLP + Automation**: Intelligent intent recognition that goes beyond keyword matching.
+- 🔌 **Plugin-Ready**: Modular architecture designed for custom community extensions.
+- 🛡️ **Privacy First**: Optimized for local inference to keep your data on your machine.
+- 💻 **Cross-Platform**: A premium, consistent experience on Windows, macOS, and Linux.
 
 ## 🛠️ Quick Start
 
@@ -59,10 +71,12 @@ npm run tauri dev
 
 ## 🗺️ Roadmap
 
-- [ ] **Custom Wake Words**: Train and use your own wake words.
-- [ ] **Plugin System**: Community-driven extensions for various apps.
-- [ ] **Cross-Platform Parity**: Full feature support for macOS and Linux.
-- [ ] **Offline LLM**: Local inference for complete privacy.
+- [x] ✔️ **Core Engine**: High-performance Tauri/Rust foundation.
+- [x] ✔️ **Instant Palette**: Premium glassmorphic Command Palette.
+- [/] 🔜 **Neural Voice**: Integration of Kokoro TTS (In Progress).
+- [ ] 🔜 **Custom Wake Words**: Train and use your own wake words.
+- [ ] ❓ **Offline LLM**: Local inference for complete privacy (Research).
+- [ ] ❓ **Plugin System**: Community-driven extensions (Planned).
 
 ## 📚 Documentation
 
