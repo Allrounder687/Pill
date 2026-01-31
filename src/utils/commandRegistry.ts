@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../stores/useAppStore';
 import { useResourceStore } from '../stores/useResourceStore';
 import { WINDOWS_SETTINGS, DEEP_WINDOWS_TOOLS, POWER_COMMANDS, MEDIA_COMMANDS, PROCESS_COMMANDS } from './commands/system';
@@ -8,12 +9,12 @@ export interface Command {
   id: string;
   title: string;
   description: string;
-  icon: string;
+  icon: string | React.ReactNode;
   iconUrl?: string;
   action: (query?: string) => Promise<{ keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void> | { keepOpen?: boolean; newQuery?: string; suppressOutput?: boolean } | void;
   keywords: string[];
-  category?: 'voice' | 'system' | 'app' | 'web' | 'win-settings';
-  component?: (props: { onQueryChange: (q: string) => void, data?: any }) => React.ReactNode;
+  category?: 'voice' | 'system' | 'app' | 'web' | 'win-settings' | 'voice-test';
+  component?: React.ComponentType<{ onQueryChange: (q: string) => void, data?: any }>;
   interactiveData?: any;
 }
 
@@ -98,8 +99,8 @@ export const getCommands = (): Command[] => [
     title: app.name,
     description: `Launch ${app.name}`,
     icon: '🚀',
+    iconUrl: app.iconUrl, // Use the iconUrl from the store (fetched via backend)
     action: async () => {
-      const { invoke } = await import('@tauri-apps/api/core');
       useResourceStore.getState().speak(`Opening ${app.name}`);
       try { await invoke('launch_app', { path: app.path }); } catch (err) { console.error(err); }
       return { suppressOutput: true };

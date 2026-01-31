@@ -1,0 +1,17 @@
+{
+  "identifier": "allow-app-commands",
+  "description": "Permissions for custom application commands",
+  "commands": {
+    "allow": [
+      "get_apps",
+      "launch_app",
+      "system_media_control",
+      "get_youtube_video_id",
+      "get_app_icon",
+      "list_processes",
+      "kill_process_by_name",
+      "kill_process_by_pid",
+      "kill_process_tree"
+    ]
+  }
+}

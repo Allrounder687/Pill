@@ -11,35 +11,64 @@ export const APP_COMMANDS: Command[] = [
     icon: '🚀',
     action: async (query) => {
       const cleanQuery = query?.replace(/[.,!?;:]/g, '').trim() || '';
-      const appName = cleanQuery.replace(/launch|open|start|run/i, '').trim().toLowerCase();
+      
+      // Better app name extraction: remove common prefixes
+      const appName = cleanQuery
+        .replace(/^(launch|open|start|run|the)\s+/i, '')
+        .replace(/\s+(app|application|software)$/i, '')
+        .trim()
+        .toLowerCase();
+
       if (!appName) return;
 
-      const apps = useAppStore.getState().installedApps;
-      const matches = apps.filter(a => 
-        a.name.toLowerCase() === appName || 
-        a.name.toLowerCase().startsWith(appName) || 
-        a.name.toLowerCase().includes(appName)
-      );
+      const { installedApps, refreshApps } = useAppStore.getState();
+      const speak = useResourceStore.getState().speak;
+
+      // If apps list is empty, try to refresh once
+      if (installedApps.length === 0) {
+        await refreshApps();
+      }
+
+      const currentApps = useAppStore.getState().installedApps;
       
-      let targetApp = matches.find(a => a.name.toLowerCase() === appName) || (matches.length === 1 ? matches[0] : null);
+      // Smarter matching: 
+      // 1. Exact match
+      // 2. Starts with
+      // 3. Contains words
+      const matches = currentApps.filter(a => {
+        const name = a.name.toLowerCase();
+        return name === appName || 
+               name.startsWith(appName) || 
+               name.includes(appName) ||
+               appName.includes(name);
+      });
+      
+      let targetApp = matches.find(a => a.name.toLowerCase() === appName) || 
+                      (matches.length === 1 ? matches[0] : null);
       
       if (targetApp) {
-        useResourceStore.getState().speak(`Opening ${targetApp.name}`);
+        speak(`Opening ${targetApp.name}`);
         try {
           await invoke('launch_app', { path: targetApp.path });
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+          console.error(err);
+          speak(`Sorry, I couldn't launch ${targetApp.name}`);
+        }
         return { suppressOutput: true };
       }
       
       if (matches.length > 1) {
         const top3 = matches.slice(0, 3).map(a => a.name).join(', ');
-        useResourceStore.getState().speak(`I found ${matches.length} apps. The top results are ${top3}. Which one?`);
+        speak(`I found ${matches.length} matches, like ${top3}. Which one did you mean?`);
         return { keepOpen: true, newQuery: appName };
       }
 
-      useResourceStore.getState().speak(`Searching the web for ${appName}`);
-      const { open } = await import('@tauri-apps/plugin-shell');
-      open(`https://www.google.com/search?q=${encodeURIComponent(appName)}`).catch(console.error);
+      // Final check: don't search web if the user clearly said "Open [something]" but we just don't have it
+      // unless it looks like a generic query.
+      if (appName.length > 2) {
+        speak(`I couldn't find an app named ${appName} on your system. Should I search for it online?`);
+        return { keepOpen: true, newQuery: `search ${appName}` };
+      }
     },
     keywords: ['open', 'launch', 'start', 'run'],
     category: 'app'

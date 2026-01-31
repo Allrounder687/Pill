@@ -1,0 +1,61 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "allow-get-apps"
+description = "Allows the get_apps command"
+commands.allow = ["get_apps"]
+
+[[permission]]
+identifier = "allow-launch-app"
+description = "Allows the launch_app command"
+commands.allow = ["launch_app"]
+
+[[permission]]
+identifier = "allow-system-media-control"
+description = "Allows the system_media_control command"
+commands.allow = ["system_media_control"]
+
+[[permission]]
+identifier = "allow-get-youtube-video-id"
+description = "Allows the get_youtube_video_id command"
+commands.allow = ["get_youtube_video_id"]
+
+[[permission]]
+identifier = "allow-get-app-icon"
+description = "Allows the get_app_icon command"
+commands.allow = ["get_app_icon"]
+
+[[permission]]
+identifier = "allow-list-processes"
+description = "Allows the list_processes command"
+commands.allow = ["list_processes"]
+
+[[permission]]
+identifier = "allow-kill-process-by-name"
+description = "Allows the kill_process_by_name command"
+commands.allow = ["kill_process_by_name"]
+
+[[permission]]
+identifier = "allow-kill-process-by-pid"
+description = "Allows the kill_process_by_pid command"
+commands.allow = ["kill_process_by_pid"]
+
+[[permission]]
+identifier = "allow-kill-process-tree"
+description = "Allows the kill_process_tree command"
+commands.allow = ["kill_process_tree"]
+
+[permission-set]
+identifier = "default"
+description = "Default permissions for all app custom commands"
+permissions = [
+    "allow-get-apps",
+    "allow-launch-app",
+    "allow-system-media-control",
+    "allow-get-youtube-video-id",
+    "allow-get-app-icon",
+    "allow-list-processes",
+    "allow-kill-process-by-name",
+    "allow-kill-process-by-pid",
+    "allow-kill-process-tree"
+]

@@ -38,6 +38,7 @@ function App() {
   const isSettings = window.location.pathname.includes('settings');
   const setPaletteVisible = useAppStore(state => state.setPaletteVisible);
   const setWakeWordDetected = useAppStore(state => state.setWakeWordDetected);
+  const refreshApps = useAppStore(state => state.refreshApps);
   
   const setFollowSystemAppearance = useAppStore(state => state.setFollowSystemAppearance);
   const followSystemAppearance = useAppStore(state => state.followSystemAppearance);
@@ -181,6 +182,7 @@ function App() {
   useEffect(() => {
     if (isSettings) return;
     initTTS().catch(err => console.error('[App] TTS init failed:', err));
+    refreshApps().catch(err => console.error('[App] App refresh failed:', err));
     
     const unlistenSync = listen('sync-palette-visibility', (event: any) => {
       setPaletteVisible(event.payload, false);

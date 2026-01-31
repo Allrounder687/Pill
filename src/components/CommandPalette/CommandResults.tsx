@@ -12,6 +12,7 @@ interface CommandResultsProps {
   executeCommand: (cmd: Command) => void;
   query: string;
   setQuery: (query: string) => void;
+  userNavigated?: boolean; // Flag to indicate user pressed arrow keys
 }
 
 const ComponentLoader: React.FC<{ 
@@ -41,7 +42,11 @@ const ComponentLoader: React.FC<{
   }
 
   // Fallback for any other custom component functions
-  return <>{cmd.component && cmd.component({ onQueryChange, data: cmd.interactiveData })}</>;
+  if (cmd.component) {
+    const CustomComponent = cmd.component;
+    return <CustomComponent onQueryChange={onQueryChange} data={cmd.interactiveData} />;
+  }
+  return null;
 };
 
 export const CommandResults: React.FC<CommandResultsProps> = ({
@@ -50,24 +55,30 @@ export const CommandResults: React.FC<CommandResultsProps> = ({
   setSelectedIndex,
   executeCommand,
   query,
-  setQuery
+  setQuery,
+  userNavigated = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Only scroll into view when user navigates with keyboard, not on query change
   useEffect(() => {
+    if (!userNavigated) return;
+    
     const selectedElement = containerRef.current?.querySelector('.selected, .selected-component');
     if (selectedElement) {
       selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, userNavigated]);
 
   if (filteredCommands.length === 0) {
     return <div className="no-results">No matches for "{query}"</div>;
   }
 
+  const limitedCommands = filteredCommands.slice(0, 10);
+
   return (
     <div className="results-section" ref={containerRef}>
-      {filteredCommands.map((cmd, index) => {
+      {limitedCommands.map((cmd, index) => {
         // Recognition of interactive components (either via ID or component fn)
         const isInteractive = cmd.id === 'currency-mini-app' || cmd.id === 'process-killer-app' || cmd.component;
         
@@ -94,7 +105,12 @@ export const CommandResults: React.FC<CommandResultsProps> = ({
                   alt="" 
                   className="command-favicon" 
                   loading="lazy"
-                  onError={(e) => (e.currentTarget.style.display = 'none')} 
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    // Use a fallback emoji if icon is not a string
+                    const fallbackIcon = typeof cmd.icon === 'string' ? cmd.icon : '📦';
+                    e.currentTarget.parentElement!.innerHTML = fallbackIcon;
+                  }} 
                 />
               ) : cmd.icon}
             </span>

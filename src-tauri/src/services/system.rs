@@ -146,12 +146,11 @@ pub async fn system_media_control(action: String, repeat: Option<u32>) -> Result
 
 #[tauri::command]
 pub async fn get_app_icon(path: String) -> Result<String, String> {
+    use windows::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
+    use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, ICONINFO};
+    use windows::Win32::Graphics::Gdi::{GetDIBits, GetDC, ReleaseDC, CreateCompatibleDC, SelectObject, DeleteDC, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS};
     use windows::core::PCWSTR;
-    use windows::Win32::UI::Shell::SHGetFileInfoW;
-    use windows::Win32::UI::Shell::SHFILEINFOW;
-    use windows::Win32::UI::Shell::SHGFI_ICON;
-    use windows::Win32::UI::Shell::SHGFI_LARGEICON;
-    use windows::Win32::UI::WindowsAndMessaging::DestroyIcon;
+    use base64::{engine::general_purpose, Engine as _};
 
     let mut shfi = SHFILEINFOW::default();
     let wide_path: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
@@ -169,10 +168,97 @@ pub async fn get_app_icon(path: String) -> Result<String, String> {
             return Err("Failed to extract icon".to_string());
         }
 
-        let _ = DestroyIcon(shfi.hIcon);
-    }
+        let h_icon = shfi.hIcon;
+        let mut icon_info = ICONINFO::default();
+        if GetIconInfo(h_icon, &mut icon_info).is_err() {
+            let _ = DestroyIcon(h_icon);
+            return Err("Failed to get icon info".to_string());
+        }
 
-    Ok(path)
+        let h_bmp = icon_info.hbmColor;
+        let h_dc_screen = GetDC(None);
+        let h_dc_mem = CreateCompatibleDC(h_dc_screen);
+        let h_old_bmp = SelectObject(h_dc_mem, h_bmp);
+
+        let mut bmi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: 48,
+                biHeight: -48, // top-down
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: 0, // BI_RGB
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut buffer = vec![0u8; 48 * 48 * 4];
+        let lines = GetDIBits(
+            h_dc_mem,
+            h_bmp,
+            0,
+            48,
+            Some(buffer.as_mut_ptr() as *mut _),
+            &mut bmi,
+            DIB_RGB_COLORS,
+        );
+
+        // Cleanup
+        SelectObject(h_dc_mem, h_old_bmp);
+        DeleteDC(h_dc_mem);
+        ReleaseDC(None, h_dc_screen);
+        let _ = windows::Win32::Graphics::Gdi::DeleteObject(icon_info.hbmColor);
+        let _ = windows::Win32::Graphics::Gdi::DeleteObject(icon_info.hbmMask);
+        let _ = DestroyIcon(h_icon);
+
+        if lines == 0 {
+            return Err("Failed to get bits".to_string());
+        }
+
+        // Convert BGRA to RGBA (Canvas/Web expectations)
+        for i in (0..buffer.len()).step_by(4) {
+            let b = buffer[i];
+            let r = buffer[i + 2];
+            buffer[i] = r;
+            buffer[i + 2] = b;
+        }
+
+        // We'll return it as a raw data URI with a custom type for now
+        // Chromium can sometimes render raw BMP bits if we wrap them, 
+        // but for now let's just use PNG which is the safest.
+        // Actually, without a PNG crate, let's just use a simple BMP header.
+        // Or even better, let's just return a list of pixels and let the frontend draw it.
+        // BUT, if I want to use it in an <img> tag, a BMP header is easy enough.
+
+        let mut bmp_file = Vec::with_capacity(buffer.len() + 54);
+        // File Header
+        bmp_file.extend_from_slice(b"BM");
+        bmp_file.extend_from_slice(&((54 + buffer.len()) as u32).to_le_bytes());
+        bmp_file.extend_from_slice(&[0, 0, 0, 0]);
+        bmp_file.extend_from_slice(&(54u32).to_le_bytes());
+        // Info Header
+        bmp_file.extend_from_slice(&(40u32).to_le_bytes());
+        bmp_file.extend_from_slice(&(48i32).to_le_bytes());
+        bmp_file.extend_from_slice(&(-48i32).to_le_bytes());
+        bmp_file.extend_from_slice(&(1u16).to_le_bytes());
+        bmp_file.extend_from_slice(&(32u16).to_le_bytes());
+        bmp_file.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        // Data (BGRA) - wait, GetDIBits returns BGRA which BMP expects!
+        // So I should NOT have swapped R and B above if I'm making a BMP.
+        
+        // Re-swap back to BGRA for BMP format
+        for i in (0..buffer.len()).step_by(4) {
+            let r = buffer[i];
+            let b = buffer[i + 2];
+            buffer[i] = b;
+            buffer[i + 2] = r;
+        }
+        bmp_file.extend_from_slice(&buffer);
+
+        let b64 = general_purpose::STANDARD.encode(&bmp_file);
+        Ok(format!("data:image/bmp;base64,{}", b64))
+    }
 }
 
 #[tauri::command]

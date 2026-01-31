@@ -22,6 +22,15 @@
     "core:window:allow-show",
     "core:window:allow-start-dragging",
     "core:window:allow-set-focus",
-    "core:window:allow-unminimize"
+    "core:window:allow-unminimize",
+    "allow-get-apps",
+    "allow-launch-app",
+    "allow-system-media-control",
+    "allow-get-youtube-video-id",
+    "allow-get-app-icon",
+    "allow-list-processes",
+    "allow-kill-process-by-name",
+    "allow-kill-process-by-pid",
+    "allow-kill-process-tree"
   ]
 }

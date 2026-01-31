@@ -71,6 +71,22 @@ export const useAppStore = create<AppState>()(
         try {
           const apps = await invoke<any[]>('get_apps');
           set({ installedApps: apps });
+
+          // Background fetch icons
+          apps.forEach(async (app, idx) => {
+             try {
+                const iconUrl = await invoke<string>('get_app_icon', { path: app.path });
+                set(state => {
+                  const newApps = [...state.installedApps];
+                  if (newApps[idx]) {
+                    newApps[idx] = { ...newApps[idx], iconUrl };
+                  }
+                  return { installedApps: newApps };
+                });
+             } catch (e) {
+                // Ignore icon failures
+             }
+          });
         } catch (err) {
           console.error('[Store] Failed to fetch apps:', err);
         }

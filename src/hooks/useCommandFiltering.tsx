@@ -5,20 +5,34 @@ import type { Command } from '../utils/commandRegistry';
 import { currencyService } from '../services/CurrencyService';
 import type { ConversionResult } from '../services/CurrencyService';
 
-export const useCommandFiltering = (query: string, windowMode: string): Command[] => {
+export const useCommandFiltering = (query: string, windowMode: string) => {
   const installedApps = useAppStore(state => state.installedApps);
   const [liveCurrency, setLiveCurrency] = useState<ConversionResult | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   const allStaticCommands = useMemo(() => getCommands(), [installedApps]);
 
   useEffect(() => {
     const fetchCurrency = async () => {
+      // If we have a query that looks like currency/math, mark as searching
+      const isMathOrCurrency = query.length >= 3 && (/\d/.test(query) || ['to', 'in', 'convert'].some(k => query.toLowerCase().includes(k)));
+      
+      if (isMathOrCurrency) setIsSearching(true);
+
       if (query.trim().length < 3) {
         setLiveCurrency(null);
+        setIsSearching(false);
         return;
       }
-      const result = await currencyService.convert(query);
-      setLiveCurrency(result);
+
+      try {
+        const result = await currencyService.convert(query);
+        setLiveCurrency(result);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSearching(false);
+      }
     };
 
     fetchCurrency();
@@ -88,5 +102,5 @@ export const useCommandFiltering = (query: string, windowMode: string): Command[
     return finalResults;
   }, [query, allStaticCommands, windowMode, liveCurrency]);
 
-  return filteredCommands;
+  return { filteredCommands, isSearching };
 };

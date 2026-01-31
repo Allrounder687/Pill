@@ -26,7 +26,7 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
     }
   }, [setSTTActive]);
 
-  const resetSilenceTimer = useCallback((duration = 4000) => {
+  const resetSilenceTimer = useCallback((duration = 7000) => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     silenceTimerRef.current = setTimeout(() => {
       console.log('[useSTT] Silence timeout reached.');
@@ -54,7 +54,7 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
       sessionActiveRef.current = true;
       setIsListening(true);
       setSTTActive(true);
-      resetSilenceTimer(4000); 
+      resetSilenceTimer(8000); 
     };
     
     recognition.onend = () => {
@@ -80,7 +80,7 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
     recognition.onresult = (event: any) => {
       if (!sessionActiveRef.current) return;
       
-      resetSilenceTimer(4000); 
+      resetSilenceTimer(7000); 
       
       const results = event.results;
       const lastResult = results[results.length - 1];

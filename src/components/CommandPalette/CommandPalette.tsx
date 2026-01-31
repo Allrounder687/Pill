@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCommands } from '../../utils/commandRegistry';
 import type { Command } from '../../utils/commandRegistry';
@@ -11,6 +12,13 @@ import { normalizeLaunchIntent } from '../../utils/voiceUtils';
 import VoiceIndicator from '../VoiceIndicator/VoiceIndicator';
 import { CommandResults } from './CommandResults';
 import './CommandPalette.css';
+
+const SettingsIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
 
 const CommandPalette: React.FC = () => {
   const [query, setQuery] = useState('');
@@ -25,6 +33,7 @@ const CommandPalette: React.FC = () => {
   const isVisible = useAppStore(state => state.isPaletteVisible);
   const setIsVisible = useAppStore(state => state.setPaletteVisible);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [userNavigated, setUserNavigated] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const waitingForReplyRef = useRef(false);
 
@@ -32,9 +41,24 @@ const CommandPalette: React.FC = () => {
   const { isSpeaking, isTTSInitializing: ttsInitializing } = useResourceStore();
   
   // Filtering uses the debounced query to prevent stutter while typing
-  const filteredCommands = useCommandFiltering(debouncedQuery, windowMode);
+  const { filteredCommands, isSearching } = useCommandFiltering(debouncedQuery, windowMode);
+
+  const openSettings = useCallback(() => {
+    setIsVisible(false);
+    invoke('create_window', {
+      label: 'settings',
+      title: 'Voice Access Settings',
+      url: '/settings',
+      width: 850,
+      height: 650
+    }).catch(console.error);
+  }, [setIsVisible]);
 
   const executeCommand = useCallback(async (cmd: Command, finalQuery?: string) => {
+    if (cmd.id === 'open-settings') {
+      openSettings();
+      return;
+    }
     const result = await cmd.action(finalQuery || query);
     if (result && result.keepOpen) {
       if (result.newQuery !== undefined) setQuery(result.newQuery);
@@ -83,14 +107,16 @@ const CommandPalette: React.FC = () => {
     }
   }, [isSpeaking, isVisible, startListening]);
 
-  useEffect(() => { setSelectedIndex(0); }, [filteredCommands]);
+  useEffect(() => { setSelectedIndex(0); setUserNavigated(false); }, [filteredCommands, isSearching]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       setSelectedIndex(prev => (prev + 1) % Math.max(1, filteredCommands.length));
+      setUserNavigated(true);
       e.preventDefault();
     } else if (e.key === 'ArrowUp') {
       setSelectedIndex(prev => (prev - 1 + filteredCommands.length) % Math.max(1, filteredCommands.length));
+      setUserNavigated(true);
       e.preventDefault();
     } else if (e.key === 'Enter') {
       if (filteredCommands[selectedIndex]) executeCommand(filteredCommands[selectedIndex]);
@@ -112,13 +138,18 @@ const CommandPalette: React.FC = () => {
     if (isVisible) {
       win.show().then(() => win.setFocus());
       setTimeout(() => inputRef.current?.focus(), 150);
+      
+      // Auto-start listening if triggered by wake word
+      if (wakeWordDetected && !isListening) {
+        startListening();
+      }
     } else {
       win.hide();
       if (isListening) stopListening();
       setQuery('');
       waitingForReplyRef.current = false;
     }
-  }, [isVisible, isListening, stopListening]);
+  }, [isVisible, wakeWordDetected, isListening, startListening, stopListening]);
 
   const isPillMode = query.trim().length === 0 && windowMode === 'compact';
 
@@ -131,22 +162,28 @@ const CommandPalette: React.FC = () => {
             <VoiceIndicator isListening={isListening} isSpeaking={isSpeaking} wakeWordDetected={wakeWordDetected} />
           </button>
         </div>
-        {!isPillMode && (
-          <div className="results-wrapper">
-            <CommandResults 
-              filteredCommands={filteredCommands} 
-              selectedIndex={selectedIndex} 
-              setSelectedIndex={setSelectedIndex} 
-              executeCommand={executeCommand}
-              query={query}
-              setQuery={setQuery}
-            />
-            <div className="palette-footer">
+        
+        {isSearching && <div className="loading-bar-container"><div className="loading-bar-fill" /></div>}
+        <div className={`results-wrapper ${isPillMode ? 'collapsed' : 'expanded'}`}>
+          <CommandResults 
+            filteredCommands={filteredCommands} 
+            selectedIndex={selectedIndex} 
+            setSelectedIndex={setSelectedIndex} 
+            executeCommand={executeCommand}
+            query={query}
+            setQuery={setQuery}
+            userNavigated={userNavigated}
+          />
+          <div className="palette-footer">
+            <div className="footer-left">
               <span className={`status-dot ${ttsInitializing ? 'loading' : 'ready'}`} />
               {ttsInitializing ? 'Loading Voice Engine...' : 'Jarvis Online'}
             </div>
+            <button className="footer-settings-btn" onClick={openSettings} title="Open Settings">
+              <SettingsIcon />
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
