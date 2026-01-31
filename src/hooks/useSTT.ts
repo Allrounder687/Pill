@@ -1,7 +1,17 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 
-export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
+export interface STTConfig {
+  continuous?: boolean;
+  interimResults?: boolean;
+  lang?: string;
+  disableAutoStop?: boolean;
+}
+
+export const useSTT = (
+  onResult: (text: string, isFinal: boolean) => void,
+  config: STTConfig = {}
+) => {
   const [isListening, setIsListening] = useState(false);
   const setSTTActive = useAppStore(state => state.setSTTActive);
   const recognitionRef = useRef<any>(null);
@@ -14,6 +24,7 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onend = null; // Prevent onend loops
         recognitionRef.current.stop();
       } catch (e) {}
       sessionActiveRef.current = false;
@@ -28,29 +39,32 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
 
   const resetSilenceTimer = useCallback((duration = 7000) => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    
+    // If auto-stop is disabled (Dictation Mode), we never start the timer
+    if (config.disableAutoStop) return;
+
     silenceTimerRef.current = setTimeout(() => {
       console.log('[useSTT] Silence timeout reached.');
       stopListening();
     }, duration);
-  }, [stopListening]);
+  }, [stopListening, config.disableAutoStop]);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
-    // Reset session
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch(e) {}
       recognitionRef.current = null;
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.continuous = config.continuous ?? true;
+    recognition.interimResults = config.interimResults ?? true;
+    recognition.lang = config.lang ?? 'en-US';
 
     recognition.onstart = () => {
-      console.log('[useSTT] Session Started');
+      console.log(`[useSTT] Session Started (Infinity: ${!!config.disableAutoStop})`);
       sessionActiveRef.current = true;
       setIsListening(true);
       setSTTActive(true);
@@ -59,8 +73,12 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
     
     recognition.onend = () => {
       console.log('[useSTT] Session Ended');
-      // Only update state if this was still the active session
       if (sessionActiveRef.current) {
+        // If in Dictation Mode, we might want to auto-restart if the browser stops us
+        if (config.disableAutoStop && isListening) {
+           console.log('[useSTT] Auto-restarting dictation session...');
+           try { recognition.start(); return; } catch (e) {}
+        }
         setIsListening(false);
         setSTTActive(false);
         sessionActiveRef.current = false;
@@ -72,8 +90,9 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
     };
     
     recognition.onerror = (event: any) => {
-      if (event.error === 'no-speech') return; // Ignore no-speech errors in continuous mode
+      if (event.error === 'no-speech') return;
       console.error('STT Error:', event.error);
+      if (event.error === 'aborted' && config.disableAutoStop) return;
       stopListening();
     };
 
@@ -99,7 +118,7 @@ export const useSTT = (onResult: (text: string, isFinal: boolean) => void) => {
     } catch (e) {
       console.error('[useSTT] Start failed:', e);
     }
-  }, [setSTTActive, resetSilenceTimer, stopListening]);
+  }, [setSTTActive, resetSilenceTimer, stopListening, config, isListening]);
 
   return { isListening, startListening, stopListening };
 };

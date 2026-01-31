@@ -263,3 +263,50 @@ pub async fn get_youtube_video_id(
 
     Ok(video_id.to_string())
 }
+
+#[tauri::command]
+pub async fn type_text(text: String) -> Result<(), String> {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_UNICODE,
+    };
+
+    println!("[System] Typing text: {}", text);
+
+    let mut inputs = Vec::new();
+
+    for c in text.encode_utf16() {
+        // Press
+        inputs.push(INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+                    wScan: c,
+                    dwFlags: KEYEVENTF_UNICODE,
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        });
+        // Release
+        inputs.push(INPUT {
+            r#type: INPUT_KEYBOARD,
+            Anonymous: INPUT_0 {
+                ki: KEYBDINPUT {
+                    wVk: windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY(0),
+                    wScan: c,
+                    dwFlags: KEYEVENTF_UNICODE
+                        | windows::Win32::UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS(2), // KEYEVENTF_KEYUP
+                    time: 0,
+                    dwExtraInfo: 0,
+                },
+            },
+        });
+    }
+
+    unsafe {
+        SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
+    }
+
+    Ok(())
+}

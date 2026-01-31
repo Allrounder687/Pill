@@ -135,6 +135,7 @@ pub fn run() {
             services::system::kill_process_by_name,
             services::system::kill_process_by_pid,
             services::system::kill_process_tree,
+            services::system::type_text,
             services::context::get_context_snapshot,
             services::context::capture_selected_text
         ])

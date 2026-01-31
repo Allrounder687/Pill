@@ -103,4 +103,16 @@ export const PROCESS_COMMANDS: Command[] = [
     keywords: ['processes', 'status', 'usage', 'cpu', 'memory', 'running apps'],
     category: 'system'
   },
+  {
+    id: 'dictate-mode',
+    title: 'Dictate Mode',
+    description: 'Transcribe speech with autopunctuation into active app',
+    icon: '🎤',
+    action: () => {
+        // This will be handled in the CommandPalette or a global state
+        return { keepOpen: true, newQuery: 'dictate' };
+    },
+    keywords: ['dictate', 'voice to text', 'typing', 'speech', 'write'],
+    category: 'system'
+  },
 ];

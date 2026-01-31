@@ -73,7 +73,8 @@ npm run tauri dev
 
 - [x] ✔️ **Core Engine**: High-performance Tauri/Rust foundation.
 - [x] ✔️ **Instant Palette**: Premium glassmorphic Command Palette.
-- [/] 🔜 **Neural Voice**: Integration of Kokoro TTS (In Progress).
+- [x] ✔️ **Neural Voice**: Integration of Kokoro TTS & STT Pipeline.
+- [x] ✔️ **Dictate Mode**: Seamless transcribing with AI Autopunctuation.
 - [ ] 🔜 **Custom Wake Words**: Train and use your own wake words.
 - [ ] ❓ **Offline LLM**: Local inference for complete privacy (Research).
 - [ ] ❓ **Plugin System**: Community-driven extensions (Planned).

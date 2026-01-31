@@ -44,6 +44,10 @@ interface AppState {
   setSTTActive: (active: boolean) => void;
   wakeWordDetected: boolean;
   setWakeWordDetected: (detected: boolean) => void;
+
+  // Operational Mode
+  currentMode: 'command' | 'dictate';
+  setCurrentMode: (mode: 'command' | 'dictate') => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -118,6 +122,9 @@ export const useAppStore = create<AppState>()(
       setSTTActive: (active) => set({ isSTTActive: active }),
       wakeWordDetected: false,
       setWakeWordDetected: (detected) => set({ wakeWordDetected: detected }),
+
+      currentMode: 'command',
+      setCurrentMode: (mode) => set({ currentMode: mode }),
     }),
     {
       name: 'nexus-bar-app-storage',

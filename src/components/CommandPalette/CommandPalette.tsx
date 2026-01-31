@@ -2,14 +2,13 @@ import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { getCommands } from '../../utils/commandRegistry';
 import type { Command } from '../../utils/commandRegistry';
 import { useAppStore } from '../../stores/useAppStore';
 import { useResourceStore } from '../../stores/useResourceStore';
 import { useSTT } from '../../hooks/useSTT';
 import { useCommandFiltering } from '../../hooks/useCommandFiltering';
-import { normalizeLaunchIntent } from '../../utils/voiceUtils';
 import { useContextStore } from '../../stores/useContextStore';
+import { useVoiceProcessor } from '../../hooks/useVoiceProcessor';
 import VoiceIndicator from '../VoiceIndicator/VoiceIndicator';
 import { CommandResults } from './CommandResults';
 import './CommandPalette.css';
@@ -45,8 +44,8 @@ const CommandPalette: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const waitingForReplyRef = useRef(false);
 
-  const { windowMode, wakeWordDetected } = useAppStore();
-  const { isSpeaking, isTTSInitializing: ttsInitializing } = useResourceStore();
+  const { windowMode, wakeWordDetected, currentMode, setCurrentMode } = useAppStore();
+  const { isSpeaking, isTTSInitializing: ttsInitializing, speak } = useResourceStore();
   
   // Filtering uses the debounced query to prevent stutter while typing
   const startFiltering = performance.now();
@@ -84,6 +83,11 @@ const CommandPalette: React.FC = () => {
       openSettings();
       return;
     }
+    if (cmd.id === 'dictate-mode') {
+      setCurrentMode('dictate');
+      speak('Dictation mode active.');
+      return;
+    }
     const result = await cmd.action(finalQuery || query);
     if (result && result.keepOpen) {
       if (result.newQuery !== undefined) setQuery(result.newQuery);
@@ -91,43 +95,13 @@ const CommandPalette: React.FC = () => {
     } else {
       setIsVisible(false);
     }
-  }, [query, setIsVisible]);
+  }, [query, setIsVisible, setCurrentMode, speak, openSettings]);
 
-  const handleVoiceResult = useCallback((text: string, isFinal: boolean) => {
-    const cleanedText = text.toLowerCase().trim();
-    if (!cleanedText) return;
-    
-    setQuery(cleanedText);
+  const { processVoiceResult, isProcessing } = useVoiceProcessor(setQuery, executeCommand);
 
-    // Don't execute commands until the speaker has finished (final message)
-    if (!isFinal) return;
-
-    if (['kill ', 'terminate ', 'stop process ', 'end '].some(k => cleanedText.startsWith(k))) {
-      const killCmd = getCommands().find(c => c.id === 'kill_app');
-      if (killCmd) { executeCommand(killCmd, cleanedText); return; }
-    }
-
-    if (['convert ', 'exchange ', 'how much is ', 'what is '].some(k => cleanedText.startsWith(k)) || /(\d+)\s*([a-z]{3})\s*(to|in)\s*([a-z]{3})/i.test(cleanedText)) {
-      const convertCmd = getCommands().find(c => c.id === 'currency-convert');
-      if (convertCmd) { executeCommand(convertCmd, cleanedText); return; }
-    }
-
-    const isSearchCmd = cleanedText.startsWith('search') || cleanedText.startsWith('google');
-    if (isSearchCmd) {
-      const cmd = getCommands().find(c => c.id === 'web-search');
-      if (cmd) { executeCommand(cmd, cleanedText); return; }
-    }
-
-    if (cleanedText.startsWith('launch ') || cleanedText.startsWith('open ')) {
-       const intent = normalizeLaunchIntent(cleanedText);
-       console.log('[Palette] Launch intent:', intent);
-       const openCmd = getCommands().find(c => c.id === 'open_app');
-       if (openCmd) executeCommand(openCmd, cleanedText);
-       return;
-    }
-  }, [executeCommand]);
-
-  const { isListening, startListening, stopListening } = useSTT(handleVoiceResult);
+  const { isListening, startListening, stopListening } = useSTT(processVoiceResult, {
+    disableAutoStop: currentMode === 'dictate'
+  });
 
   useEffect(() => {
     if (waitingForReplyRef.current && !isSpeaking && isVisible) {
@@ -163,9 +137,23 @@ const CommandPalette: React.FC = () => {
   
   useEffect(() => {
     const win = getCurrentWindow();
+    const unlistenBlur = listen('tauri://blur', () => {
+      if (currentMode === 'command') setIsVisible(false);
+    });
+
     if (isVisible) {
-      win.show().then(() => win.setFocus());
-      inputRef.current?.focus();
+      if (currentMode === 'dictate') {
+        win.setIgnoreCursorEvents(true);
+      } else {
+        win.setIgnoreCursorEvents(false);
+        win.setFocus();
+      }
+      
+      win.show();
+      
+      if (currentMode === 'command') {
+        inputRef.current?.focus();
+      }
       
       // Refresh context snapshot for Intent Engine
       useContextStore.getState().refreshSnapshot();
@@ -174,41 +162,72 @@ const CommandPalette: React.FC = () => {
         startListening();
       }
     } else {
+      win.setIgnoreCursorEvents(false); // Reset on hide
       win.hide();
       if (isListening) stopListening();
       setQuery('');
       waitingForReplyRef.current = false;
     }
-  }, [isVisible, wakeWordDetected, isListening, startListening, stopListening]);
+
+    return () => {
+      unlistenBlur.then(f => f());
+    };
+  }, [isVisible, wakeWordDetected, isListening, startListening, stopListening, currentMode, setIsVisible]);
 
   const isPillMode = (query.trim().length === 0 && windowMode === 'compact');
 
   return (
-    <div className={`palette-overlay ${isVisible ? 'visible' : 'hidden'} ${isPillMode ? 'pill-layout' : 'full-layout'}`} onClick={() => setIsVisible(false)}>
+    <div className={`palette-overlay ${isVisible ? 'visible' : 'hidden'} ${isPillMode ? 'pill-layout' : 'full-layout'} ${currentMode === 'dictate' ? 'dictate-mode' : ''}`} onClick={() => setIsVisible(false)}>
       <div className="palette-container" onClick={(e) => e.stopPropagation()}>
         <div className="search-section" data-tauri-drag-region>
-          <input ref={inputRef} placeholder="Search commands..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleKeyDown} />
-          <button className={`voice-btn ${isListening ? 'active' : ''}`} onClick={isListening ? stopListening : startListening}>
+          <input 
+            ref={inputRef} 
+            placeholder={currentMode === 'dictate' ? "Dictating to active window..." : "Search commands..."} 
+            value={query} 
+            readOnly={currentMode === 'dictate'}
+            onChange={(e) => setQuery(e.target.value)} 
+            onKeyDown={handleKeyDown} 
+          />
+          <button className={`voice-btn ${isListening ? 'active' : ''} ${isProcessing ? 'processing' : ''}`} onClick={isListening ? stopListening : startListening}>
             <VoiceIndicator isListening={isListening} isSpeaking={isSpeaking} wakeWordDetected={wakeWordDetected} />
           </button>
         </div>
         
-        {isSearching && <div className="loading-bar-container"><div className={`loading-bar-fill ${query.length > 5 ? 'ai-resolving' : ''}`} /></div>}
-        <div className={`results-wrapper ${isPillMode ? 'collapsed' : 'expanded'}`}>
-          <CommandResults 
-            filteredCommands={filteredCommands} 
-            selectedIndex={selectedIndex} 
-            setSelectedIndex={setSelectedIndex} 
-            executeCommand={executeCommand}
-            query={query}
-            setQuery={setQuery}
-            userNavigated={userNavigated}
-            isPrewarming={isPrewarming}
-          />
+        {(isSearching || isProcessing) && (
+          <div className="loading-bar-container">
+            <div className={`loading-bar-fill ${isProcessing ? 'dictation-processing' : (query.length > 5 ? 'ai-resolving' : '')}`} />
+          </div>
+        )}
+
+        {currentMode === 'dictate' && (
+          <div className="dictate-status">
+            <span className="dictate-badge">Dictate Active</span>
+            <span className="dictate-hint">Say "stop dictation" to exit</span>
+          </div>
+        )}
+
+        <div className={`results-wrapper ${(isPillMode && currentMode !== 'dictate') ? 'collapsed' : 'expanded'}`}>
+          {currentMode === 'command' ? (
+            <CommandResults 
+              filteredCommands={filteredCommands} 
+              selectedIndex={selectedIndex} 
+              setSelectedIndex={setSelectedIndex} 
+              executeCommand={executeCommand}
+              query={query}
+              setQuery={setQuery}
+              userNavigated={userNavigated}
+              isPrewarming={isPrewarming}
+            />
+          ) : (
+            <div className="dictation-preview">
+              <p className="preview-text">{query || "Speak now..."}</p>
+              {isProcessing && <div className="processing-indicator">Correcting grammar...</div>}
+            </div>
+          )}
           <div className="palette-footer">
             <div className="footer-left">
               <span className={`status-dot ${ttsInitializing ? 'loading' : 'ready'}`} />
-              {ttsInitializing ? 'Loading Voice Engine...' : 'Nexus Bar Online'}
+              {ttsInitializing ? 'Loading Voice Engine...' : (currentMode === 'dictate' ? 'Awaiting Speech...' : 'Nexus Bar Online')}
             </div>
             <button className="footer-settings-btn" onClick={openSettings} title="Open Settings">
               <SettingsIcon />
