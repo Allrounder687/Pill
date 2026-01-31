@@ -1,73 +1,80 @@
-# React + TypeScript + Vite
+<div align="center">
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# 💊 Pill
 
-Currently, two official plugins are available:
+### The Intelligent Voice-First Desktop Command Center
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+[Overview](#-what-is-pill) • [Features](#-core-capabilities) • [Installation](#-quick-start) • [Usage](#-hotkeys--usage) • [Docs](docs/)
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tauri](https://img.shields.io/badge/built%20with-Tauri-blue)](https://tauri.app/)
+[![Rust](https://img.shields.io/badge/powered%20by-Rust-orange)](https://www.rust-lang.org/)
 
-## Expanding the ESLint configuration
+</div>
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## ✨ What is Pill?
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**Pill** is a modern, high-performance desktop companion built with Tauri and Rust. It transforms your desktop into a voice-first command center, allowing you to launch apps, control your system, and interact with AI—all through seamless voice commands or a lightning-fast command palette.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🚀 Core Capabilities
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- 🗣️ **Voice-First Interaction**: Triggered by high-accuracy wake words (e.g., "Jarvis").
+- ⚡ **Instant Palette**: A premium, blurred Command Palette for quick keyboard navigation.
+- 🎹 **App Management**: Search, launch, and manage applications with sub-second latency.
+- 🔊 **Neural TTS**: Integrated Kokoro TTS for natural, high-quality voice responses.
+- 🛠️ **MCP Integration**: Extend functionality with the Model Context Protocol (MCP).
+- 🎮 **Game Profiles**: Specialized features for gaming, including cheat management and process control.
+
+## 🛠️ Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [Rust](https://www.rust-lang.org/) (latest stable)
+- [Tauri Dependencies](https://tauri.app/v1/guides/getting-started/prerequisites)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Allrounder687/Pill.git
+
+# Install dependencies
+npm install
+
+# Run in development mode
+npm run tauri dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## ⌨️ Hotkeys & Usage
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Action                   | Hotkey                       |
+| :----------------------- | :--------------------------- |
+| Toggle Command Palette   | `Alt + Space`                |
+| Activate Voice Listening | `Wake Word (e.g., "Jarvis")` |
+| Quick Search             | Start typing in Palette      |
+| Close/Cancel             | `Esc`                        |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🗺️ Roadmap
+
+- [ ] **Custom Wake Words**: Train and use your own wake words.
+- [ ] **Plugin System**: Community-driven extensions for various apps.
+- [ ] **Cross-Platform Parity**: Full feature support for macOS and Linux.
+- [ ] **Offline LLM**: Local inference for complete privacy.
+
+## 📚 Documentation
+
+Detailed documentation can be found in the [docs/](docs/) folder:
+
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Voice System Analysis](docs/VOICE_ANALYSIS.md)
+- [Wake Word Implementation](docs/WAKE_WORD_IMPLEMENTATION.md)
+- [TTS Implementation (Kokoro)](docs/KOKORO_IMPLEMENTATION.md)
+
+---
+
+<div align="center">
+Built with ❤️ by the Pill Community.
+</div>

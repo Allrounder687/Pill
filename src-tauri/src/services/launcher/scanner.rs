@@ -14,7 +14,7 @@ fn clean_app_name(name: &str) -> String {
         .to_string()
 }
 
-fn is_noise(name: &str, path: &str) -> bool {
+fn is_noise(name: &str, _path: &str) -> bool {
     let name_lower = name.to_lowercase();
 
     let noise_keywords = [

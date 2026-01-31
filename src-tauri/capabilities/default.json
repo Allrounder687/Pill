@@ -31,6 +31,9 @@
     "allow-list-processes",
     "allow-kill-process-by-name",
     "allow-kill-process-by-pid",
-    "allow-kill-process-tree"
+    "allow-kill-process-tree",
+    "allow-create-window",
+    "allow-get-context-snapshot",
+    "allow-capture-selected-text"
   ]
 }

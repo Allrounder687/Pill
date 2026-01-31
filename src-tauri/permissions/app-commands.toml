@@ -45,6 +45,21 @@ identifier = "allow-kill-process-tree"
 description = "Allows the kill_process_tree command"
 commands.allow = ["kill_process_tree"]
 
+[[permission]]
+identifier = "allow-create-window"
+description = "Allows the create_window command"
+commands.allow = ["create_window"]
+
+[[permission]]
+identifier = "allow-get-context-snapshot"
+description = "Allows the get_context_snapshot command"
+commands.allow = ["get_context_snapshot"]
+
+[[permission]]
+identifier = "allow-capture-selected-text"
+description = "Allows the capture_selected_text command"
+commands.allow = ["capture_selected_text"]
+
 [permission-set]
 identifier = "default"
 description = "Default permissions for all app custom commands"
@@ -57,5 +72,8 @@ permissions = [
     "allow-list-processes",
     "allow-kill-process-by-name",
     "allow-kill-process-by-pid",
-    "allow-kill-process-tree"
+    "allow-kill-process-tree",
+    "allow-create-window",
+    "allow-get-context-snapshot",
+    "allow-capture-selected-text"
 ]

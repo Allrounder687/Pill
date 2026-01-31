@@ -11,7 +11,10 @@
       "list_processes",
       "kill_process_by_name",
       "kill_process_by_pid",
-      "kill_process_tree"
+      "kill_process_tree",
+      "create_window",
+      "get_context_snapshot",
+      "capture_selected_text"
     ]
   }
 }
